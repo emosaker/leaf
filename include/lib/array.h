@@ -14,7 +14,7 @@
 #define array_ctor_for(...) array_get_ctor(__VA_ARGS__, array_new_deleter, array_new_for)
 #define array_new(...) array_ctor_for(__VA_ARGS__)(__VA_ARGS__)
 
-#define Array(T) T *
+#define lfArray(T) T *
 #define header(ARR) (((lfArrayHeader *)(*(ARR)))[-1])
 #define length(ARR) header(ARR).length
 #define size(ARR) header(ARR).size
