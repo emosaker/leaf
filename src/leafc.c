@@ -6,6 +6,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "lib/ansi.h"
+#include "lib/array.h"
+#include "parser/token.h"
+#include "parser/tokenize.h"
 
 #define FATAL FG_RED BOLD "fatal: " RESET
 
@@ -36,8 +39,12 @@ int main(int argc, const char **argv) {
     }
     buffer[sz] = 0;
 
-    /* parse, compile ... */
+    lfArray(lfToken) tokens = lf_tokenize(buffer, file);
+    if (tokens == NULL) {
+        return 1; /* tokenizer printed error message */
+    }
 
+    array_delete(&tokens);
     free(buffer);
     return 0;
 }

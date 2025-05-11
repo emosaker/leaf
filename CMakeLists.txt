@@ -4,7 +4,12 @@ project(leaf LANGUAGES C)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_C_STANDARD 99)
 
-add_executable(leafc src/leafc.c)
+set(LEAF_COMPILER_SOURCES
+    src/lib/error.c
+    src/parser/tokenize.c
+)
+
+add_executable(leafc src/leafc.c ${LEAF_COMPILER_SOURCES})
 
 target_include_directories(leafc PRIVATE include "${CMAKE_SOURCE_DIR}/include")
 

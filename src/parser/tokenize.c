@@ -2,15 +2,27 @@
  * This file is part of the leaf programming language
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <stdbool.h>
 
-#include "parser/tokenize.h"
 #include "lib/array.h"
+#include "lib/error.h"
+#include "parser/tokenize.h"
 #include "parser/token.h"
+
+const char *keywords[] = {
+    "var", "const", "ref", "fn", "class", "if", "while", "for", "continue", "break", "return", NULL
+};
 
 void token_deleter(lfToken *tok) {
     if (tok->value != NULL) {
-        free(tok->value);
+        if (tok->type == TT_STRING) {
+            array_delete(&tok->value);
+        } else {
+            free(tok->value);
+        }
     }
 }
 
@@ -62,6 +74,11 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
     size_t i = 0;
     while (source[i]) {
         switch (source[i]) {
+            case '\n':
+            case ' ':
+            case '\t':
+                i += 1;
+                break;
             case '+':
                 token_singledouble(source, &i, &tokens, TT_ADD, TT_ADDASSIGN, '=');
                 break;
@@ -119,8 +136,143 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                 array_push(&tokens, token_single(TT_RBRACKET, i));
                 i += 1;
                 break;
+
+            case ':':
+                array_push(&tokens, token_single(TT_COLON, i));
+                i += 1;
+                break;
+
+            default:
+                if (source[i] >= '0' && source[i] <= '9') {
+                    size_t start = i;
+                    size_t dots = 0;
+                    while (source[i] && ((source[i] >= '0' && source[i] <= '9') || source[i] == '.')) {
+                        if (source[i] == '.') {
+                            dots += 1;
+                        }
+                        i += 1;
+                    }
+                    if (dots > 1) {
+                        error_print(file, source, start, i, "malformed number");
+                        array_delete(&tokens);
+                        return NULL;
+                    }
+                    lfToken tok = (lfToken) {
+                        .type = dots == 0 ? TT_INT : TT_FLOAT,
+                        .value = malloc(i - start + 1),
+                        .idx_start = start,
+                        .idx_end = i
+                    };
+                    memcpy(tok.value, source + start, i - start);
+                    tok.value[i - start] = 0;
+                    array_push(&tokens, tok);
+                } else if (
+                    (source[i] >= 'A' && source[i] <= 'Z') ||
+                    (source[i] >= 'a' && source[i] <= 'z') ||
+                     source[i] == '_'
+                ) {
+                    size_t start = i;
+                    while (
+                          source[i] &&
+                        ((source[i] >= 'A' && source[i] <= 'Z') ||
+                         (source[i] >= 'a' && source[i] <= 'z') ||
+                          source[i] == '_')
+                    ) {
+                        i += 1;
+                    }
+                    lfToken tok = (lfToken) {
+                        .type = TT_IDENTIFIER,
+                        .value = malloc(i - start + 1),
+                        .idx_start = start,
+                        .idx_end = i
+                    };
+                    memcpy(tok.value, source + start, i - start);
+                    tok.value[i - start] = 0;
+                    size_t j = 0;
+                    while (keywords[j] != NULL) {
+                        if (!strcmp(tok.value, keywords[j])) {
+                            tok.type = TT_KEYWORD;
+                        }
+                        j += 1;
+                    }
+                    array_push(&tokens, tok);
+                } else if (source[i] == '"' || source[i] == '\'') {
+                    size_t start = i;
+                    char opener = source[i];
+                    i += 1;
+                    lfArray(char) buffer = array_new(char);
+                    while (source[i] && source[i] != opener) {
+                        if (source[i] == '\\') {
+                            switch (source[i + 1]) {
+                                case 'a':
+                                    array_push(&buffer, 0x7);
+                                    break;
+                                case 'b':
+                                    array_push(&buffer, 0x8);
+                                    break;
+                                case 'f':
+                                    array_push(&buffer, 0xc);
+                                    break;
+                                case 'n':
+                                    array_push(&buffer, 0xa);
+                                    break;
+                                case 'r':
+                                    array_push(&buffer, 0xd);
+                                    break;
+                                case 't':
+                                    array_push(&buffer, 0x9);
+                                    break;
+                                case 'v':
+                                    array_push(&buffer, 0xb);
+                                    break;
+                                case '\\':
+                                    array_push(&buffer, '\\');
+                                    break;
+                                case '\'':
+                                    array_push(&buffer, '\'');
+                                    break;
+                                case '"':
+                                    array_push(&buffer, '"');
+                                    break;
+                                case 'x':
+                                    if (!source[i + 2] || !source[i + 3]) {
+                                        error_print(file, source, i, i + 1, "incomplete hexadecimal escape");
+                                    }
+                                    char tmp[3] = { source[i + 2], source[i + 3], 0 };
+                                    char v = strtol(tmp, NULL, 16);
+                                    array_push(&buffer, v);
+                                    i += 2;
+                                    break;
+                                default:
+                                    error_print(file, source, i, i + 1, "unknown escape sequence");
+                                    break;
+                            }
+                            i += 2;
+                        } else {
+                            array_push(&buffer, source[i]);
+                            i += 1;
+                        }
+                    }
+                    if (source[i] != opener) {
+                        error_print(file, source, start, i, "unterminated string literal");
+                        array_delete(&buffer);
+                        array_delete(&tokens);
+                        return NULL;
+                    }
+                    i += 1;
+                    array_push(&buffer, 0);
+                    lfToken tok = (lfToken) {
+                        .type = TT_STRING,
+                        .value = buffer,
+                        .idx_start = start,
+                        .idx_end = i
+                    };
+                    array_push(&tokens, tok);
+                }
         }
     }
+
+    array_push(&tokens, token_single(TT_EOF, i));
 
     return tokens;
 }

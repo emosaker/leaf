@@ -2,8 +2,8 @@
  * This file is part of the leaf programming language
  */
 
-#ifndef LF_TOKEN_H
-#define LF_TOKEN_H
+#ifndef LEAF_TOKEN_H
+#define LEAF_TOKEN_H
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -16,7 +16,7 @@ typedef enum lfTokenType {
     TT_KEYWORD,
     TT_INT,
     TT_FLOAT,
-    STRING,
+    TT_STRING,
 
     /* operators */
     TT_ADD,
@@ -69,4 +69,4 @@ typedef struct lfToken {
     size_t idx_end;
 } lfToken;
 
-#endif /* LF_TOKEN_H */
+#endif /* LEAF_TOKEN_H */
