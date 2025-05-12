@@ -7,6 +7,7 @@ set(CMAKE_C_STANDARD 99)
 set(LEAF_COMPILER_SOURCES
     src/lib/error.c
     src/parser/tokenize.c
+    src/parser/parse.c
 )
 
 add_executable(leafc src/leafc.c ${LEAF_COMPILER_SOURCES})

@@ -5,10 +5,13 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include "lib/ansi.h"
-#include "lib/array.h"
+
 #include "parser/token.h"
 #include "parser/tokenize.h"
+#include "parser/node.h"
+#include "parser/parse.h"
+#include "lib/ansi.h"
+#include "lib/array.h"
 
 #define FATAL FG_RED BOLD "fatal: " RESET
 
@@ -41,9 +44,21 @@ int main(int argc, const char **argv) {
 
     lfArray(lfToken) tokens = lf_tokenize(buffer, file);
     if (tokens == NULL) {
+        free(buffer);
         return 1; /* tokenizer printed error message */
     }
 
+    lfNode *ast = lf_parse(tokens, buffer, file);
+    if (ast == NULL) {
+        array_delete(&tokens);
+        free(buffer);
+        return 1;
+    }
+
+    lf_node_print(ast);
+    printf("\n");
+
+    lf_node_delete(ast);
     array_delete(&tokens);
     free(buffer);
     return 0;

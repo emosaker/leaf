@@ -7,10 +7,10 @@
 #include <string.h>
 #include <stdbool.h>
 
-#include "lib/array.h"
-#include "lib/error.h"
 #include "parser/tokenize.h"
 #include "parser/token.h"
+#include "lib/array.h"
+#include "lib/error.h"
 
 const char *keywords[] = {
     "var", "const", "ref", "fn", "class", "if", "while", "for", "continue", "break", "return", NULL
@@ -272,7 +272,7 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
         }
     }
 
-    array_push(&tokens, token_single(TT_EOF, i));
+    array_push(&tokens, token_single(TT_EOF, i - 1));
 
     return tokens;
 }
