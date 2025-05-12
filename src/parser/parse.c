@@ -75,6 +75,36 @@ lfNode *parse_literal(lfParseCtx *ctx) {
         access->var = ctx->current;
         advance(ctx);
         return (lfNode *)access;
+    } else if (ctx->current.type == TT_LBRACE) {
+        lfToken lbrace = ctx->current;
+        lfArray(lfNode *) values = array_new(lfNode *, lf_node_deleter);
+        advance(ctx);
+        if (ctx->current.type != TT_RBRACE && ctx->current.type != TT_COMMA) {
+            do {
+                if (ctx->current.type == TT_COMMA) {
+                    advance(ctx);
+                }
+                lfNode *expr = parse_expr(ctx);
+                if (ctx->errored) {
+                    array_delete(&values);
+                    return NULL;
+                }
+                array_push(&values, expr);
+            } while (ctx->current.type == TT_COMMA);
+        }
+        if (ctx->current.type != TT_RBRACE) {
+            array_delete(&values);
+            error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '}'");
+            error_print(ctx->file, ctx->source, lbrace.idx_start, lbrace.idx_end, "... to close");
+            ctx->errored = true;
+            ctx->described = true;
+            return NULL;
+        }
+        advance(ctx);
+        lfArrayNode *array = alloc(lfArrayNode);
+        array->type = NT_ARRAY;
+        array->values = values;
+        return (lfNode *)array;
     }
 
     ctx->errored = true;
@@ -130,11 +160,15 @@ lfNode *parse_subscriptive(lfParseCtx *ctx) {
             lfToken lparen = ctx->current;
             lfArray(lfNode *) args = array_new(lfNode *, lf_node_deleter);
             advance(ctx);
-            if (ctx->current.type != TT_RPAREN) {
+            if (ctx->current.type != TT_RPAREN && ctx->current.type != TT_COMMA) {
                 do {
+                    if (ctx->current.type == TT_COMMA) {
+                        advance(ctx);
+                    }
                     lfNode *arg = parse_expr(ctx);
                     if (ctx->errored) {
                         lf_node_delete(object);
+                        array_delete(&args);
                         return NULL;
                     }
                     array_push(&args, arg);
@@ -142,6 +176,7 @@ lfNode *parse_subscriptive(lfParseCtx *ctx) {
             }
             if (ctx->current.type != TT_RPAREN) {
                 lf_node_delete(object);
+                array_delete(&args);
                 error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected ')'");
                 error_print(ctx->file, ctx->source, lparen.idx_start, lparen.idx_end, "... to close");
                 ctx->errored = true;
@@ -286,6 +321,7 @@ const char *op_to_string(lfTokenType type) {
         case TT_SUB: return "-";
         case TT_MUL: return "*";
         case TT_DIV: return "/";
+        case TT_POW: return "^";
         case TT_EQ: return "==";
         case TT_NE: return "!=";
         case TT_LT: return "<";
@@ -346,6 +382,17 @@ void lf_node_print(lfNode *node) {
             }
             printf(")");
         } break;
+        case NT_ARRAY: {
+            lfArrayNode *arr = (lfArrayNode *)node;
+            printf("array{");
+            for (size_t i = 0; i < length(&arr->values); i++) {
+                lf_node_print(arr->values[i]);
+                if (i < length(&arr->values) - 1) {
+                    printf(", ");
+                }
+            }
+            printf("}");
+        } break;
         case NT_INT:
         case NT_FLOAT:
         case NT_STRING: {
@@ -384,6 +431,11 @@ void lf_node_delete(lfNode *node) {
             lfSubscriptionNode *sub = (lfSubscriptionNode *)node;
             lf_node_delete(sub->object);
             lf_node_delete(sub->index);
+            free(node);
+        } break;
+        case NT_ARRAY: {
+            lfArrayNode *arr = (lfArrayNode *)node;
+            array_delete(&arr->values);
             free(node);
         } break;
         case NT_INT:

@@ -15,6 +15,7 @@ typedef enum lfNodeType {
     NT_INT,
     NT_FLOAT,
     NT_STRING,
+    NT_ARRAY,
 
     /* operations */
     NT_UNARYOP,
@@ -53,18 +54,6 @@ typedef struct lfBinaryOpNode {
     lfNode *rhs;
 } lfBinaryOpNode;
 
-typedef struct lfVarDeclNode {
-    lfNodeType type;
-    /* strictly for error messages */
-    lfToken start;
-    lfToken end;
-    /* --- */
-    lfToken name;
-    lfNode *initializer;
-    bool is_const;
-    bool is_ref; /* for functions */
-} lfVarDeclNode;
-
 typedef struct lfVarAccessNode {
     lfNodeType type;
     lfToken var;
@@ -81,5 +70,20 @@ typedef struct lfCallNode {
     lfNode *func;
     lfArray(lfNode *) args;
 } lfCallNode;
+
+typedef struct lfArrayNode {
+    lfNodeType type;
+    lfArray(lfNode *) values;
+} lfArrayNode;
+
+/* statements */
+
+typedef struct lfVarDeclNode {
+    lfNodeType type;
+    lfToken name;
+    lfNode *initializer;
+    bool is_const;
+    bool is_ref; /* for functions */
+} lfVarDeclNode;
 
 #endif /* LEAF_NODE_H */
