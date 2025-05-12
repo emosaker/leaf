@@ -5,7 +5,10 @@
 #ifndef LEAF_NODE_H
 #define LEAF_NODE_H
 
+#include <stdbool.h>
+
 #include "parser/token.h"
+#include "lib/array.h"
 
 typedef enum lfNodeType {
     /* literals */
@@ -16,6 +19,15 @@ typedef enum lfNodeType {
     /* operations */
     NT_UNARYOP,
     NT_BINARYOP,
+
+    /* variables */
+    NT_VARACCESS,
+    NT_VARDECL,
+    NT_SUBSCRIBE,
+
+    /* functional */
+    NT_CALL
+
 
 } lfNodeType;
 
@@ -40,5 +52,34 @@ typedef struct lfBinaryOpNode {
     lfNode *lhs;
     lfNode *rhs;
 } lfBinaryOpNode;
+
+typedef struct lfVarDeclNode {
+    lfNodeType type;
+    /* strictly for error messages */
+    lfToken start;
+    lfToken end;
+    /* --- */
+    lfToken name;
+    lfNode *initializer;
+    bool is_const;
+    bool is_ref; /* for functions */
+} lfVarDeclNode;
+
+typedef struct lfVarAccessNode {
+    lfNodeType type;
+    lfToken var;
+} lfVarAccessNode;
+
+typedef struct lfSubscriptionNode {
+    lfNodeType type;
+    lfNode *object;
+    lfNode *index;
+} lfSubscriptionNode;
+
+typedef struct lfCallNode {
+    lfNodeType type;
+    lfNode *func;
+    lfArray(lfNode *) args;
+} lfCallNode;
 
 #endif /* LEAF_NODE_H */

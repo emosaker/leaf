@@ -60,6 +60,10 @@ typedef enum lfTokenType {
     TT_RBRACE,
     TT_LBRACKET,
     TT_RBRACKET,
+
+    /* misc */
+    TT_DOT,
+    TT_COMMA
 } lfTokenType;
 
 typedef struct lfToken {

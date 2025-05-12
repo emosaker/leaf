@@ -142,6 +142,15 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                 i += 1;
                 break;
 
+            case '.':
+                array_push(&tokens, token_single(TT_DOT, i));
+                i += 1;
+                break;
+            case ',':
+                array_push(&tokens, token_single(TT_COMMA, i));
+                i += 1;
+                break;
+
             default:
                 if (source[i] >= '0' && source[i] <= '9') {
                     size_t start = i;
