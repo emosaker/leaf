@@ -16,7 +16,7 @@ const char *keywords[] = {
     "var", "const", "ref", "fn", "class", "if", "while", "for", "continue", "break", "return", NULL
 };
 
-void token_deleter(lfToken *tok) {
+void token_deleter(const lfToken *tok) {
     if (tok->value != NULL) {
         if (tok->type == TT_STRING) {
             array_delete(&tok->value);
@@ -69,7 +69,7 @@ static inline void token_singledoubledouble(const char *source, size_t *index, l
 }
 
 lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
-    lfArray(lfToken) tokens = array_new(lfToken, token_deleter);
+    lfArray(lfToken) tokens = array_new(lfToken);
 
     size_t i = 0;
     while (source[i]) {

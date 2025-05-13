@@ -10,6 +10,7 @@
 #include "parser/token.h"
 #include "lib/array.h"
 #include "lib/error.h"
+#include "parser/tokenize.h"
 
 #define alloc(TYPE) (TYPE *)malloc(sizeof(TYPE))
 
@@ -292,10 +293,12 @@ lfNode *parse_expr(lfParseCtx *ctx) {
     return expr;
 }
 
-lfNode *lf_parse(const lfArray(lfToken) tokens, const char *source, const char *file) {
-    if (length(&tokens) == 0) {
+lfNode *lf_parse(const char *source, const char *file) {
+    lfArray(lfToken) tokens = lf_tokenize(source, file);
+    if (tokens == NULL) {
         return NULL;
     }
+
     lfParseCtx ctx = (lfParseCtx) {
         .tokens = tokens,
         .current_idx = 0,
@@ -311,6 +314,8 @@ lfNode *lf_parse(const lfArray(lfToken) tokens, const char *source, const char *
         error_print(file, source, ctx.current.idx_start, ctx.current.idx_end, "expected expression");
         return NULL;
     }
+
+    array_delete(&tokens);
 
     return expr;
 }
@@ -406,17 +411,20 @@ void lf_node_delete(lfNode *node) {
     switch (node->type) {
         case NT_UNARYOP: {
             lfUnaryOpNode *unop = (lfUnaryOpNode *)node;
+            token_deleter(&unop->op);
             lf_node_delete(unop->value);
             free(node);
         } break;
         case NT_BINARYOP: {
             lfBinaryOpNode *binop = (lfBinaryOpNode *)node;
+            token_deleter(&binop->op);
             lf_node_delete(binop->lhs);
             lf_node_delete(binop->rhs);
             free(node);
         } break;
         case NT_VARDECL: {
             lfVarDeclNode *decl = (lfVarDeclNode *)node;
+            token_deleter(&decl->name);
             if (decl->initializer)
                 lf_node_delete(decl->initializer);
             free(node);
@@ -438,11 +446,17 @@ void lf_node_delete(lfNode *node) {
             array_delete(&arr->values);
             free(node);
         } break;
+        case NT_VARACCESS: {
+            lfVarAccessNode *var_access = (lfVarAccessNode *)node;
+            token_deleter(&var_access->var);
+            free(node);
+        } break;
         case NT_INT:
         case NT_FLOAT:
-        case NT_VARACCESS:
-        case NT_STRING:
+        case NT_STRING: {
+            lfLiteralNode *lit = (lfLiteralNode *)node;
+            token_deleter(&lit->value);
             free(node);
-            break;
+        } break;
     }
 }
