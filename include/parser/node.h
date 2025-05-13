@@ -36,6 +36,12 @@ typedef struct lfNode {
     lfNodeType type;
 } lfNode;
 
+typedef struct lfType {
+    lfToken typename;
+} lfType;
+
+/* nodes */
+
 typedef struct lfLiteralNode {
     lfNodeType type;
     lfToken value;
@@ -84,6 +90,8 @@ typedef struct lfVarDeclNode {
     lfNode *initializer;
     bool is_const;
     bool is_ref; /* for functions */
+    bool is_typed;
+    lfType vartype;
 } lfVarDeclNode;
 
 #endif /* LEAF_NODE_H */

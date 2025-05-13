@@ -3,6 +3,7 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <stdbool.h>
 
 #include "parser/node.h"
@@ -293,6 +294,62 @@ lfNode *parse_expr(lfParseCtx *ctx) {
     return expr;
 }
 
+lfNode *parse_statement(lfParseCtx *ctx) {
+    if (ctx->current.type == TT_KEYWORD) {
+        bool is_const = !strcmp(ctx->current.value, "const");
+        if (!strcmp(ctx->current.value, "var") || is_const) {
+            advance(ctx);
+            if (ctx->current.type != TT_IDENTIFIER) {
+                error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected variable name");
+                ctx->errored = true;
+                ctx->described = true;
+                return NULL;
+            }
+            lfToken name = ctx->current;
+            advance(ctx);
+            bool is_typed = false;
+            lfType type;
+            if (ctx->current.type == TT_COLON) {
+                advance(ctx);
+                if (ctx->current.type != TT_IDENTIFIER) {
+                    error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected type name");
+                    ctx->errored = true;
+                    ctx->described = true;
+                    return NULL;
+                }
+                type.typename = ctx->current;
+                is_typed = true;
+                advance(ctx);
+            }
+            lfNode *initializer = NULL;
+            if (ctx->current.type == TT_ASSIGN) {
+                advance(ctx);
+                initializer = parse_expr(ctx);
+                if (ctx->errored) {
+                    return NULL;
+                }
+            }
+            lfVarDeclNode *decl = alloc(lfVarDeclNode);
+            decl->type = NT_VARDECL;
+            decl->is_const = is_const;
+            decl->name = name;
+            decl->initializer = initializer;
+            decl->is_ref = false;
+            decl->is_typed = is_typed;
+            decl->vartype = type;
+            return (lfNode *)decl;
+        }
+    }
+
+    lfNode *expr = parse_comparative(ctx); /* avoid the expr error printer */
+    if (ctx->errored && !ctx->described) {
+        error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected statement or expression");
+        ctx->described = true;
+    }
+
+    return expr;
+}
+
 lfNode *lf_parse(const char *source, const char *file) {
     lfArray(lfToken) tokens = lf_tokenize(source, file);
     if (tokens == NULL) {
@@ -309,15 +366,16 @@ lfNode *lf_parse(const char *source, const char *file) {
         .described = false
     };
 
-    lfNode *expr = parse_expr(&ctx);
-    if (ctx.errored && !ctx.described) {
-        error_print(file, source, ctx.current.idx_start, ctx.current.idx_end, "expected expression");
-        return NULL;
-    }
+    lfNode *statement = parse_statement(&ctx);
 
+    for (size_t i = 0; i < length(&tokens); i++) {
+        if ((!ctx.errored && tokens[i].type == TT_KEYWORD) || ctx.errored) {
+            token_deleter(tokens + i);
+        }
+    }
     array_delete(&tokens);
 
-    return expr;
+    return statement;
 }
 
 const char *op_to_string(lfTokenType type) {
@@ -357,7 +415,7 @@ void lf_node_print(lfNode *node) {
         } break;
         case NT_VARDECL: {
             lfVarDeclNode *decl = (lfVarDeclNode *)node;
-            printf("%s decl(%s", decl->is_const ? "const" : decl->is_ref ? "ref" : "var", decl->name.value);
+            printf("%s decl(%s : %s", decl->is_const ? "const" : decl->is_ref ? "ref" : "var", decl->name.value, decl->is_typed ? decl->vartype.typename.value : "any");
             if (decl->initializer) {
                 printf(" = ");
                 lf_node_print(decl->initializer);
@@ -425,6 +483,7 @@ void lf_node_delete(lfNode *node) {
         case NT_VARDECL: {
             lfVarDeclNode *decl = (lfVarDeclNode *)node;
             token_deleter(&decl->name);
+            token_deleter(&decl->vartype.typename);
             if (decl->initializer)
                 lf_node_delete(decl->initializer);
             free(node);
