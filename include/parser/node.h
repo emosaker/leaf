@@ -27,8 +27,11 @@ typedef enum lfNodeType {
     NT_SUBSCRIBE,
 
     /* functional */
-    NT_CALL
+    NT_CALL,
 
+    /* control flow */
+    NT_IF,
+    NT_WHILE
 
 } lfNodeType;
 
@@ -93,5 +96,18 @@ typedef struct lfVarDeclNode {
     bool is_typed;
     lfType vartype;
 } lfVarDeclNode;
+
+typedef struct lfIfNode {
+    lfNodeType type;
+    lfNode *condition;
+    lfNode *body;
+    lfNode *else_body;
+} lfIfNode;
+
+typedef struct lfWhileNode {
+    lfNodeType type;
+    lfNode *condition;
+    lfNode *body;
+} lfWhileNode;
 
 #endif /* LEAF_NODE_H */

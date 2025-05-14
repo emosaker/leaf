@@ -45,9 +45,6 @@ int main(int argc, const char **argv) {
         return 1;
     }
 
-    lf_node_print(ast);
-    printf("\n");
-
     lf_node_delete(ast);
     free(buffer);
     return 0;

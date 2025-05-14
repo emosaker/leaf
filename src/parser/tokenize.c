@@ -16,12 +16,14 @@ const char *keywords[] = {
     "var", "const", "ref", "fn", "class", "if", "while", "for", "continue", "break", "return", NULL
 };
 
-void token_deleter(const lfToken *tok) {
+void token_deleter(lfToken *tok) {
     if (tok->value != NULL) {
         if (tok->type == TT_STRING) {
             array_delete(&tok->value);
+            tok->value = NULL;
         } else {
             free(tok->value);
+            tok->value = NULL;
         }
     }
 }

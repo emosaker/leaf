@@ -73,6 +73,6 @@ typedef struct lfToken {
     size_t idx_end;
 } lfToken;
 
-void token_deleter(const lfToken *tok);
+void token_deleter(lfToken *tok);
 
 #endif /* LEAF_TOKEN_H */

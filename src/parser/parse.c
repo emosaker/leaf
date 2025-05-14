@@ -312,6 +312,7 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             if (ctx->current.type == TT_COLON) {
                 advance(ctx);
                 if (ctx->current.type != TT_IDENTIFIER) {
+                    token_deleter(&name);
                     error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected type name");
                     ctx->errored = true;
                     ctx->described = true;
@@ -326,6 +327,10 @@ lfNode *parse_statement(lfParseCtx *ctx) {
                 advance(ctx);
                 initializer = parse_expr(ctx);
                 if (ctx->errored) {
+                    token_deleter(&name);
+                    if (is_typed) {
+                        token_deleter(&type.typename);
+                    }
                     return NULL;
                 }
             }
@@ -338,6 +343,49 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             decl->is_typed = is_typed;
             decl->vartype = type;
             return (lfNode *)decl;
+        } else if (!strcmp(ctx->current.value, "if")) {
+            advance(ctx);
+            lfNode *condition = parse_expr(ctx);
+            if (ctx->errored) {
+                return NULL;
+            }
+            lfNode *body = parse_statement(ctx);
+            if (ctx->errored) {
+                lf_node_delete(condition);
+                return NULL;
+            }
+            lfNode *else_body = NULL;
+            if (ctx->current.type == TT_KEYWORD && !strcmp(ctx->current.value, "else")) {
+                advance(ctx);
+                else_body = parse_statement(ctx);
+                if (ctx->errored) {
+                    lf_node_delete(condition);
+                    lf_node_delete(body);
+                    return NULL;
+                }
+            }
+            lfIfNode *ifnode = alloc(lfIfNode);
+            ifnode->type = NT_IF;
+            ifnode->body = body;
+            ifnode->else_body = else_body;
+            ifnode->condition = condition;
+            return (lfNode *)ifnode;
+        } else if (!strcmp(ctx->current.value, "while")) {
+            advance(ctx);
+            lfNode *condition = parse_expr(ctx);
+            if (ctx->errored) {
+                return NULL;
+            }
+            lfNode *body = parse_statement(ctx);
+            if (ctx->errored) {
+                lf_node_delete(condition);
+                return NULL;
+            }
+            lfWhileNode *whilenode = alloc(lfWhileNode);
+            whilenode->type = NT_WHILE;
+            whilenode->body = body;
+            whilenode->condition = condition;
+            return (lfNode *)whilenode;
         }
     }
 
@@ -369,7 +417,7 @@ lfNode *lf_parse(const char *source, const char *file) {
     lfNode *statement = parse_statement(&ctx);
 
     for (size_t i = 0; i < length(&tokens); i++) {
-        if ((!ctx.errored && tokens[i].type == TT_KEYWORD) || ctx.errored) {
+        if (tokens[i].type == TT_KEYWORD) {
             token_deleter(tokens + i);
         }
     }
@@ -378,95 +426,21 @@ lfNode *lf_parse(const char *source, const char *file) {
     return statement;
 }
 
-const char *op_to_string(lfTokenType type) {
-    switch (type) {
-        case TT_ADD: return "+";
-        case TT_SUB: return "-";
-        case TT_MUL: return "*";
-        case TT_DIV: return "/";
-        case TT_POW: return "^";
-        case TT_EQ: return "==";
-        case TT_NE: return "!=";
-        case TT_LT: return "<";
-        case TT_GT: return ">";
-        case TT_LE: return "<=";
-        case TT_GE: return ">=";
-        case TT_LSHIFT: return "<<";
-        case TT_RSHIFT: return ">>";
-        default: return "?";
-    }
-}
-
-void lf_node_print(lfNode *node) {
-    switch (node->type) {
-        case NT_UNARYOP: {
-            lfUnaryOpNode *unop = (lfUnaryOpNode *)node;
-            printf("%s(", unop->op.value);
-            lf_node_print(unop->value);
-            printf(")");
-        } break;
-        case NT_BINARYOP: {
-            lfBinaryOpNode *binop = (lfBinaryOpNode *)node;
-            printf("(");
-            lf_node_print(binop->lhs);
-            printf(" %s ", op_to_string(binop->op.type));
-            lf_node_print(binop->rhs);
-            printf(")");
-        } break;
-        case NT_VARDECL: {
-            lfVarDeclNode *decl = (lfVarDeclNode *)node;
-            printf("%s decl(%s : %s", decl->is_const ? "const" : decl->is_ref ? "ref" : "var", decl->name.value, decl->is_typed ? decl->vartype.typename.value : "any");
-            if (decl->initializer) {
-                printf(" = ");
-                lf_node_print(decl->initializer);
-            }
-            printf(")");
-        } break;
-        case NT_VARACCESS: {
-            lfVarAccessNode *access = (lfVarAccessNode *)node;
-            printf("var(%s)", access->var.value);
-        } break;
-        case NT_SUBSCRIBE: {
-            lfSubscriptionNode *sub = (lfSubscriptionNode *)node;
-            lf_node_print(sub->object);
-            printf("[");
-            lf_node_print(sub->index);
-            printf("]");
-        } break;
-        case NT_CALL: {
-            lfCallNode *call = (lfCallNode *)node;
-            lf_node_print(call->func);
-            printf("(");
-            for (size_t i = 0; i < length(&call->args); i++) {
-                lf_node_print(call->args[i]);
-                if (i < length(&call->args) - 1) {
-                    printf(", ");
-                }
-            }
-            printf(")");
-        } break;
-        case NT_ARRAY: {
-            lfArrayNode *arr = (lfArrayNode *)node;
-            printf("array{");
-            for (size_t i = 0; i < length(&arr->values); i++) {
-                lf_node_print(arr->values[i]);
-                if (i < length(&arr->values) - 1) {
-                    printf(", ");
-                }
-            }
-            printf("}");
-        } break;
-        case NT_INT:
-        case NT_FLOAT:
-        case NT_STRING: {
-            lfLiteralNode *literal = (lfLiteralNode *)node;
-            printf("literal(%s)", literal->value.value);
-        } break;
-    }
-}
-
 void lf_node_delete(lfNode *node) {
     switch (node->type) {
+        case NT_IF: {
+            lfIfNode *ifnode = (lfIfNode *)node;
+            lf_node_delete(ifnode->condition);
+            lf_node_delete(ifnode->body);
+            if (ifnode->else_body) {
+                lf_node_delete(ifnode->else_body);
+            }
+        } break;
+        case NT_WHILE: {
+            lfWhileNode *whilenode = (lfWhileNode *)node;
+            lf_node_delete(whilenode->condition);
+            lf_node_delete(whilenode->body);
+        } break;
         case NT_UNARYOP: {
             lfUnaryOpNode *unop = (lfUnaryOpNode *)node;
             token_deleter(&unop->op);
