@@ -35,13 +35,30 @@ typedef enum lfNodeType {
 
 } lfNodeType;
 
+typedef enum lfTypeType {
+    VT_TYPENAME,
+    VT_UNION,
+    VT_INTERSECTION
+} lfTypeType;
+
 typedef struct lfNode {
     lfNodeType type;
 } lfNode;
 
 typedef struct lfType {
-    lfToken typename;
+    lfTypeType type;
 } lfType;
+
+typedef struct lfTypeOp {
+    lfTypeType type;
+    lfType *lhs;
+    lfType *rhs;
+} lfTypeOp;
+
+typedef struct lfTypeName {
+    lfTypeType type;
+    lfToken typename;
+} lfTypeName;
 
 /* nodes */
 
@@ -93,8 +110,7 @@ typedef struct lfVarDeclNode {
     lfNode *initializer;
     bool is_const;
     bool is_ref; /* for functions */
-    bool is_typed;
-    lfType vartype;
+    lfType *vartype;
 } lfVarDeclNode;
 
 typedef struct lfIfNode {

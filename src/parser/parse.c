@@ -35,7 +35,56 @@ void lf_node_deleter(lfNode **node) { /* for use with the lfArray type */
     lf_node_delete(*node);
 }
 
+void type_delete(lfType *t) {
+    if (t->type == VT_UNION || t->type == VT_INTERSECTION) {
+        lfTypeOp *op = (lfTypeOp *)t;
+        type_delete(op->lhs);
+        type_delete(op->rhs);
+        free(t);
+    } else {
+        lfTypeName *tn = (lfTypeName *)t;
+        token_deleter(&tn->typename);
+        free(t);
+    }
+}
+
 lfNode *parse_expr(lfParseCtx *ctx);
+
+lfType *parse_typename(lfParseCtx *ctx) {
+    if (ctx->current.type != TT_IDENTIFIER) {
+        error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected typename");
+        ctx->errored = true;
+        ctx->described = true;
+        return NULL;
+    }
+    lfTypeName *typename = alloc(lfTypeName);
+    typename->type = VT_TYPENAME;
+    typename->typename = ctx->current;
+    advance(ctx);
+    return (lfType *)typename;
+}
+
+lfType *parse_type(lfParseCtx *ctx) {
+    lfType *t = parse_typename(ctx);
+    if (ctx->errored) {
+        return NULL;
+    }
+    while (ctx->current.type == TT_BAND || ctx->current.type == TT_BOR) {
+        lfTypeType op = ctx->current.type == TT_BAND ? VT_INTERSECTION : VT_UNION;
+        advance(ctx);
+        lfType *rhs = parse_typename(ctx);
+        if (ctx->errored) {
+            type_delete(t);
+            return NULL;
+        }
+        lfTypeOp *o = alloc(lfTypeOp);
+        o->type = op;
+        o->lhs = t;
+        o->rhs = rhs;
+        t = (lfType *)o;
+    }
+    return t;
+}
 
 lfNode *parse_literal(lfParseCtx *ctx) {
     if (ctx->current.type == TT_INT || ctx->current.type == TT_FLOAT || ctx->current.type == TT_STRING) {
@@ -307,20 +356,14 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             }
             lfToken name = ctx->current;
             advance(ctx);
-            bool is_typed = false;
-            lfType type;
+            lfType *type = NULL;
             if (ctx->current.type == TT_COLON) {
                 advance(ctx);
-                if (ctx->current.type != TT_IDENTIFIER) {
+                type = parse_type(ctx);
+                if (ctx->errored) {
                     token_deleter(&name);
-                    error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected type name");
-                    ctx->errored = true;
-                    ctx->described = true;
                     return NULL;
                 }
-                type.typename = ctx->current;
-                is_typed = true;
-                advance(ctx);
             }
             lfNode *initializer = NULL;
             if (ctx->current.type == TT_ASSIGN) {
@@ -328,8 +371,8 @@ lfNode *parse_statement(lfParseCtx *ctx) {
                 initializer = parse_expr(ctx);
                 if (ctx->errored) {
                     token_deleter(&name);
-                    if (is_typed) {
-                        token_deleter(&type.typename);
+                    if (type) {
+                        type_delete(type);
                     }
                     return NULL;
                 }
@@ -340,7 +383,6 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             decl->name = name;
             decl->initializer = initializer;
             decl->is_ref = false;
-            decl->is_typed = is_typed;
             decl->vartype = type;
             return (lfNode *)decl;
         } else if (!strcmp(ctx->current.value, "if")) {
@@ -417,7 +459,7 @@ lfNode *lf_parse(const char *source, const char *file) {
     lfNode *statement = parse_statement(&ctx);
 
     for (size_t i = 0; i < length(&tokens); i++) {
-        if (tokens[i].type == TT_KEYWORD) {
+        if (tokens[i].type == TT_KEYWORD || (ctx.errored && i >= ctx.current_idx)) {
             token_deleter(tokens + i);
         }
     }
@@ -457,7 +499,9 @@ void lf_node_delete(lfNode *node) {
         case NT_VARDECL: {
             lfVarDeclNode *decl = (lfVarDeclNode *)node;
             token_deleter(&decl->name);
-            token_deleter(&decl->vartype.typename);
+            if (decl->vartype) {
+                type_delete(decl->vartype);
+            }
             if (decl->initializer)
                 lf_node_delete(decl->initializer);
             free(node);
