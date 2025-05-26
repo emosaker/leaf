@@ -63,7 +63,8 @@ typedef enum lfTokenType {
 
     /* misc */
     TT_DOT,
-    TT_COMMA
+    TT_COMMA,
+    TT_ARROW
 } lfTokenType;
 
 typedef struct lfToken {

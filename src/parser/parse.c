@@ -41,18 +41,37 @@ void type_delete(lfType *t) {
         type_delete(op->lhs);
         type_delete(op->rhs);
         free(t);
-    } else {
+    } else if (t->type == VT_ARRAY) {
+        lfArrayType *arr = (lfArrayType *)t;
+        array_delete(&arr->values);
+        free(t);
+    } else if (t->type == VT_MAP) {
+        lfMapType *map = (lfMapType *)t;
+        array_delete(&map->keys);
+        array_delete(&map->values);
+        free(t);
+    } else if (t->type == VT_FUNC) {
+        lfFuncType *f = (lfFuncType *)t;
+        array_delete(&f->params);
+        type_delete(f->ret);
+        free(t);
+    } else if (t->type == VT_TYPENAME) {
         lfTypeName *tn = (lfTypeName *)t;
         token_deleter(&tn->typename);
         free(t);
     }
 }
 
+void type_deleter(lfType **t) { /* for use with arrays */
+    type_delete(*t);
+}
+
 lfNode *parse_expr(lfParseCtx *ctx);
+lfType *parse_type(lfParseCtx *ctx);
 
 lfType *parse_typename(lfParseCtx *ctx) {
     if (ctx->current.type != TT_IDENTIFIER) {
-        error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected typename");
+        error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected type");
         ctx->errored = true;
         ctx->described = true;
         return NULL;
@@ -64,15 +83,163 @@ lfType *parse_typename(lfParseCtx *ctx) {
     return (lfType *)typename;
 }
 
+lfType *parse_nontrivial_type(lfParseCtx *ctx) {
+    if (ctx->current.type == TT_LBRACE) {
+        lfArray(lfType *) keys = array_new(lfType *, type_deleter);
+        lfArray(lfType *) values = array_new(lfType *, type_deleter);
+        lfToken lbrace = ctx->current;
+        advance(ctx);
+        bool is_map = false;
+        bool is_array = false;
+        if (ctx->current.type != TT_RBRACE && ctx->current.type != TT_COMMA) {
+            do {
+                if (ctx->current.type == TT_COMMA) {
+                    advance(ctx);
+                }
+                lfType *t = parse_type(ctx);
+                if (ctx->errored) {
+                    array_delete(&keys);
+                    array_delete(&values);
+                    return NULL;
+                }
+                if (ctx->current.type == TT_COLON) {
+                    is_map = true;
+                    array_push(&keys, t);
+                    if (is_array) {
+                        error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "invalid ':' in array type");
+                        ctx->errored = true;
+                        ctx->described = true;
+                        array_delete(&keys);
+                        array_delete(&values);
+                        return NULL;
+                    }
+                    advance(ctx);
+                    lfType *v = parse_type(ctx);
+                    if (ctx->errored) {
+                        array_delete(&keys);
+                        array_delete(&values);
+                        return NULL;
+                    }
+                    array_push(&values, v);
+                } else {
+                    is_array = true;
+                    array_push(&values, t);
+                    if (is_map) {
+                        error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected ':' in map type");
+                        ctx->errored = true;
+                        ctx->described = true;
+                        array_delete(&keys);
+                        array_delete(&values);
+                        return NULL;
+                    }
+                }
+            } while (ctx->current.type == TT_COMMA);
+        }
+        if (ctx->current.type != TT_RBRACE) {
+            error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '}'");
+            error_print(ctx->file, ctx->source, lbrace.idx_start, lbrace.idx_end, "... to close");
+            ctx->errored = true;
+            ctx->described = true;
+            array_delete(&keys);
+            array_delete(&values);
+            return NULL;
+        }
+        advance(ctx);
+        if (is_map) {
+            lfMapType *t = alloc(lfMapType);
+            t->type = VT_MAP;
+            t->keys = keys;
+            t->values = values;
+            return (lfType *)t;
+        } else {
+            array_delete(&keys);
+            lfArrayType *t = alloc(lfArrayType);
+            t->type = VT_ARRAY;
+            t->values = values;
+            return (lfType *)t;
+        }
+    } else if (ctx->current.type == TT_LPAREN) {
+        lfToken lparen = ctx->current;
+        advance(ctx);
+        lfArray(lfType *) params = NULL;
+        lfType *t = NULL;
+        if (ctx->current.type != TT_RPAREN) {
+            t = parse_type(ctx);
+            if (ctx->errored) {
+                return NULL;
+            }
+        }
+        if (ctx->current.type == TT_COMMA) {
+            params = array_new(lfType *, type_deleter);
+            array_push(&params, t);
+            do {
+                advance(ctx);
+                t = parse_type(ctx);
+                if (ctx->errored) {
+                    array_delete(&params);
+                    return NULL;
+                }
+                array_push(&params, t);
+            } while (ctx->current.type == TT_COMMA);
+        }
+        if (ctx->current.type != TT_RPAREN) {
+            error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected ')'");
+            error_print(ctx->file, ctx->source, lparen.idx_start, lparen.idx_end, "... to close");
+            ctx->errored = true;
+            ctx->described = true;
+            if (params != NULL) {
+                array_delete(params);
+            } else {
+                type_delete(t);
+            }
+            return NULL;
+        }
+        advance(ctx);
+        if (ctx->current.type == TT_ARROW) {
+            advance(ctx);
+            if (params == NULL) { /* turn our single type into a parameter list with one type */
+                params = array_new(lfType *, type_deleter);
+                if (t) {
+                    array_push(&params, t);
+                }
+            }
+            lfType *ret = parse_type(ctx);
+            if (ctx->errored) {
+                array_delete(params);
+                return NULL;
+            }
+            lfFuncType *f = alloc(lfFuncType);
+            f->type = VT_FUNC;
+            f->params = params;
+            f->ret = ret;
+            return (lfType *)f;
+        } else if (params == NULL && t) {
+            return t;
+        } else {
+            error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '->'");
+            ctx->errored = true;
+            ctx->described = true;
+            if (params != NULL) {
+                array_delete(params);
+            } else if (t) {
+                type_delete(t);
+            }
+            return NULL;
+        }
+    }
+
+    return parse_typename(ctx);
+}
+
 lfType *parse_type(lfParseCtx *ctx) {
-    lfType *t = parse_typename(ctx);
+    lfType *t = parse_nontrivial_type(ctx);
     if (ctx->errored) {
         return NULL;
     }
     while (ctx->current.type == TT_BAND || ctx->current.type == TT_BOR) {
         lfTypeType op = ctx->current.type == TT_BAND ? VT_INTERSECTION : VT_UNION;
         advance(ctx);
-        lfType *rhs = parse_typename(ctx);
+        lfType *rhs = parse_nontrivial_type(ctx);
         if (ctx->errored) {
             type_delete(t);
             return NULL;
@@ -128,6 +295,9 @@ lfNode *parse_literal(lfParseCtx *ctx) {
         return (lfNode *)access;
     } else if (ctx->current.type == TT_LBRACE) {
         lfToken lbrace = ctx->current;
+        bool is_arr = false;
+        bool is_map = false;
+        lfArray(lfNode *) keys = array_new(lfNode *, lf_node_deleter);
         lfArray(lfNode *) values = array_new(lfNode *, lf_node_deleter);
         advance(ctx);
         if (ctx->current.type != TT_RBRACE && ctx->current.type != TT_COMMA) {
@@ -137,13 +307,45 @@ lfNode *parse_literal(lfParseCtx *ctx) {
                 }
                 lfNode *expr = parse_expr(ctx);
                 if (ctx->errored) {
+                    array_delete(&keys);
                     array_delete(&values);
                     return NULL;
                 }
-                array_push(&values, expr);
+                if (ctx->current.type == TT_COLON) {
+                    is_map = true;
+                    array_push(&keys, expr);
+                    if (is_arr) {
+                        error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "invalid ':' in array");
+                        array_delete(&keys);
+                        array_delete(&values);
+                        ctx->errored = true;
+                        ctx->described = true;
+                        return NULL;
+                    }
+                    advance(ctx);
+                    lfNode *value = parse_expr(ctx);
+                    if (ctx->errored) {
+                        array_delete(&keys);
+                        array_delete(&values);
+                        return NULL;
+                    }
+                    array_push(&values, value);
+                } else {
+                    is_arr = true;
+                    array_push(&values, expr);
+                    if (is_map) {
+                        error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected ':' in map");
+                        array_delete(&keys);
+                        array_delete(&values);
+                        ctx->errored = true;
+                        ctx->described = true;
+                        return NULL;
+                    }
+                }
             } while (ctx->current.type == TT_COMMA);
         }
         if (ctx->current.type != TT_RBRACE) {
+            array_delete(&keys);
             array_delete(&values);
             error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '}'");
             error_print(ctx->file, ctx->source, lbrace.idx_start, lbrace.idx_end, "... to close");
@@ -152,10 +354,19 @@ lfNode *parse_literal(lfParseCtx *ctx) {
             return NULL;
         }
         advance(ctx);
-        lfArrayNode *array = alloc(lfArrayNode);
-        array->type = NT_ARRAY;
-        array->values = values;
-        return (lfNode *)array;
+        if (is_map) {
+            lfMapNode *map = alloc(lfMapNode);
+            map->type = NT_MAP;
+            map->keys = keys;
+            map->values = values;
+            return (lfNode *)map;
+        } else { /* empty declerations are assumed to be arrays */
+            array_delete(&keys);
+            lfArrayNode *array = alloc(lfArrayNode);
+            array->type = NT_ARRAY;
+            array->values = values;
+            return (lfNode *)array;
+        }
     }
 
     ctx->errored = true;
@@ -520,6 +731,12 @@ void lf_node_delete(lfNode *node) {
         } break;
         case NT_ARRAY: {
             lfArrayNode *arr = (lfArrayNode *)node;
+            array_delete(&arr->values);
+            free(node);
+        } break;
+        case NT_MAP: {
+            lfMapNode *arr = (lfMapNode *)node;
+            array_delete(&arr->keys);
             array_delete(&arr->values);
             free(node);
         } break;

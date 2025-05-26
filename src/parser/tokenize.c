@@ -85,7 +85,7 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                 token_singledouble(source, &i, &tokens, TT_ADD, TT_ADDASSIGN, '=');
                 break;
             case '-':
-                token_singledouble(source, &i, &tokens, TT_SUB, TT_SUBASSIGN, '=');
+                token_singledoubledouble(source, &i, &tokens, TT_SUB, TT_SUBASSIGN, TT_ARROW, '=', '>');
                 break;
             case '*':
                 token_singledouble(source, &i, &tokens, TT_MUL, TT_MULASSIGN, '=');

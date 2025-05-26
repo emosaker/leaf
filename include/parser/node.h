@@ -16,6 +16,7 @@ typedef enum lfNodeType {
     NT_FLOAT,
     NT_STRING,
     NT_ARRAY,
+    NT_MAP,
 
     /* operations */
     NT_UNARYOP,
@@ -35,10 +36,15 @@ typedef enum lfNodeType {
 
 } lfNodeType;
 
+/* typing */
+
 typedef enum lfTypeType {
     VT_TYPENAME,
     VT_UNION,
-    VT_INTERSECTION
+    VT_INTERSECTION,
+    VT_FUNC,
+    VT_ARRAY,
+    VT_MAP
 } lfTypeType;
 
 typedef struct lfNode {
@@ -59,6 +65,23 @@ typedef struct lfTypeName {
     lfTypeType type;
     lfToken typename;
 } lfTypeName;
+
+typedef struct lfMapType {
+    lfTypeType type;
+    lfArray(lfType *) keys;
+    lfArray(lfType *) values;
+} lfMapType;
+
+typedef struct lfArrayType {
+    lfTypeType type;
+    lfArray(lfType *) values;
+} lfArrayType;
+
+typedef struct lfFuncType {
+    lfTypeType type;
+    lfArray(lfType *) params;
+    lfType *ret;
+} lfFuncType;
 
 /* nodes */
 
@@ -101,6 +124,12 @@ typedef struct lfArrayNode {
     lfNodeType type;
     lfArray(lfNode *) values;
 } lfArrayNode;
+
+typedef struct lfMapNode {
+    lfNodeType type;
+    lfArray(lfNode *) keys;
+    lfArray(lfNode *) values;
+} lfMapNode;
 
 /* statements */
 
