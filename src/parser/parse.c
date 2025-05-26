@@ -596,48 +596,71 @@ lfNode *parse_expr(lfParseCtx *ctx) {
     return expr;
 }
 
-lfNode *parse_statement(lfParseCtx *ctx) {
-    if (ctx->current.type == TT_KEYWORD) {
-        bool is_const = !strcmp(ctx->current.value, "const");
-        if (!strcmp(ctx->current.value, "var") || is_const) {
+lfNode *parse_vardecl(lfParseCtx *ctx, bool allow_ref) {
+    if (ctx->current.type != TT_KEYWORD) {
+        error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected 'var', 'const', or 'ref'");
+        ctx->errored = true;
+        ctx->described = true;
+        return NULL;
+    }
+    bool is_const = !strcmp(ctx->current.value, "const");
+    bool is_ref = !strcmp(ctx->current.value, "ref");
+    if (!allow_ref && is_ref) {
+        error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "unexpected 'ref'");
+        ctx->errored = true;
+        ctx->described = true;
+        return NULL;
+    }
+    if (!strcmp(ctx->current.value, "var") || is_const || is_ref) {
+        advance(ctx);
+        if (ctx->current.type != TT_IDENTIFIER) {
+            error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected variable name");
+            ctx->errored = true;
+            ctx->described = true;
+            return NULL;
+        }
+        lfToken name = ctx->current;
+        advance(ctx);
+        lfType *type = NULL;
+        if (ctx->current.type == TT_COLON) {
             advance(ctx);
-            if (ctx->current.type != TT_IDENTIFIER) {
-                error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected variable name");
-                ctx->errored = true;
-                ctx->described = true;
+            type = parse_type(ctx);
+            if (ctx->errored) {
+                token_deleter(&name);
                 return NULL;
             }
-            lfToken name = ctx->current;
+        }
+        lfNode *initializer = NULL;
+        if (ctx->current.type == TT_ASSIGN) {
             advance(ctx);
-            lfType *type = NULL;
-            if (ctx->current.type == TT_COLON) {
-                advance(ctx);
-                type = parse_type(ctx);
-                if (ctx->errored) {
-                    token_deleter(&name);
-                    return NULL;
+            initializer = parse_expr(ctx);
+            if (ctx->errored) {
+                token_deleter(&name);
+                if (type) {
+                    type_delete(type);
                 }
+                return NULL;
             }
-            lfNode *initializer = NULL;
-            if (ctx->current.type == TT_ASSIGN) {
-                advance(ctx);
-                initializer = parse_expr(ctx);
-                if (ctx->errored) {
-                    token_deleter(&name);
-                    if (type) {
-                        type_delete(type);
-                    }
-                    return NULL;
-                }
-            }
-            lfVarDeclNode *decl = alloc(lfVarDeclNode);
-            decl->type = NT_VARDECL;
-            decl->is_const = is_const;
-            decl->name = name;
-            decl->initializer = initializer;
-            decl->is_ref = false;
-            decl->vartype = type;
-            return (lfNode *)decl;
+        }
+        lfVarDeclNode *decl = alloc(lfVarDeclNode);
+        decl->type = NT_VARDECL;
+        decl->is_const = is_const;
+        decl->name = name;
+        decl->initializer = initializer;
+        decl->is_ref = is_ref;
+        decl->vartype = type;
+        return (lfNode *)decl;
+    }
+
+    ctx->errored = true;
+    ctx->described = false;
+    return NULL;
+}
+
+lfNode *parse_statement(lfParseCtx *ctx) {
+    if (ctx->current.type == TT_KEYWORD) {
+        if (!strcmp(ctx->current.value, "var") || !strcmp(ctx->current.value, "const")) {
+            return parse_vardecl(ctx, false);
         } else if (!strcmp(ctx->current.value, "if")) {
             advance(ctx);
             lfNode *condition = parse_expr(ctx);
@@ -681,6 +704,110 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             whilenode->body = body;
             whilenode->condition = condition;
             return (lfNode *)whilenode;
+        } else if (!strcmp(ctx->current.value, "fn")) {
+            advance(ctx);
+            if (ctx->current.type != TT_IDENTIFIER) {
+                error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected function name");
+                ctx->errored = true;
+                ctx->described = true;
+                return NULL;
+            }
+            lfToken name = ctx->current;
+            advance(ctx);
+            lfToken lparen = ctx->current;
+            if (ctx->current.type != TT_LPAREN) {
+                error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '('");
+                ctx->errored = true;
+                ctx->described = true;
+                return NULL;
+            }
+            advance(ctx);
+            lfArray(lfVarDeclNode *) params = array_new(lfVarDeclNode *, lf_node_deleter);
+            if (ctx->current.type != TT_RPAREN && ctx->current.type != TT_COMMA) {
+                do {
+                    if (ctx->current.type == TT_COMMA) {
+                        advance(ctx);
+                    }
+                    lfVarDeclNode *param = (lfVarDeclNode *)parse_vardecl(ctx, true);
+                    if (ctx->errored) {
+                        if (!ctx->described) {
+                            error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected parameter");
+                            ctx->described = true;
+                        }
+                        token_deleter(&name);
+                        array_delete(&params);
+                        return NULL;
+                    }
+                    array_push(&params, param);
+                } while (ctx->current.type == TT_COMMA);
+            }
+            if (ctx->current.type != TT_RPAREN) {
+                error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected ')'");
+                error_print(ctx->file, ctx->source, lparen.idx_start, lparen.idx_end, "... to close");
+                ctx->described = true;
+                ctx->errored = true;
+                token_deleter(&name);
+                array_delete(&params);
+                return NULL;
+            }
+            advance(ctx);
+            lfType *type = NULL;
+            if (ctx->current.type == TT_ARROW) {
+                advance(ctx);
+                type = parse_type(ctx);
+                if (ctx->errored) {
+                    token_deleter(&name);
+                    array_delete(&params);
+                    return NULL;
+                }
+            }
+            lfToken lbrace = ctx->current;
+            if (ctx->current.type != TT_LBRACE) {
+                error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '{'");
+                ctx->described = true;
+                ctx->errored = true;
+                token_deleter(&name);
+                array_delete(&params);
+                if (type) {
+                    type_delete(type);
+                }
+                return NULL;
+            }
+            advance(ctx);
+            lfArray(lfNode *) body = array_new(lfNode *, lf_node_deleter);
+            while (ctx->current.type != TT_RBRACE) {
+                lfNode *statement = parse_statement(ctx);
+                if (ctx->errored) {
+                    token_deleter(&name);
+                    array_delete(&params);
+                    array_delete(&body);
+                    if (type) {
+                        type_delete(type);
+                    }
+                    return NULL;
+                }
+            }
+            if (ctx->current.type != TT_RBRACE) { /* eof */
+                error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '}'");
+                error_print(ctx->file, ctx->source, lbrace.idx_start, lbrace.idx_end, "... to close");
+                ctx->described = true;
+                ctx->errored = true;
+                token_deleter(&name);
+                array_delete(params);
+                array_delete(body);
+                if (type) {
+                    type_delete(type);
+                }
+                return NULL;
+            }
+            advance(ctx);
+            lfFunctionNode *f = alloc(lfFunctionNode);
+            f->type = NT_FUNC;
+            f->name = name;
+            f->body = body;
+            f->params = params;
+            f->return_type = type;
+            return (lfNode *)f;
         }
     }
 
@@ -798,6 +925,16 @@ void lf_node_delete(lfNode *node) {
             lf_node_delete(assign->object);
             lf_node_delete(assign->key);
             lf_node_delete(assign->value);
+            free(node);
+        } break;
+        case NT_FUNC: {
+            lfFunctionNode *f = (lfFunctionNode *)node;
+            token_deleter(&f->name);
+            array_delete(&f->params);
+            array_delete(&f->body);
+            if (f->return_type) {
+                type_delete(f->return_type);
+            }
             free(node);
         } break;
         case NT_INT:

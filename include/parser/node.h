@@ -170,4 +170,12 @@ typedef struct lfWhileNode {
     lfNode *body;
 } lfWhileNode;
 
+typedef struct lfFunctionNode {
+    lfNodeType type;
+    lfToken name;
+    lfArray(lfVarDeclNode *) params;
+    lfArray(lfNode *) body;
+    lfType *return_type;
+} lfFunctionNode;
+
 #endif /* LEAF_NODE_H */
