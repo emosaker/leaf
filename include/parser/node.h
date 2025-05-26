@@ -26,14 +26,16 @@ typedef enum lfNodeType {
     NT_VARACCESS,
     NT_VARDECL,
     NT_SUBSCRIBE,
+    NT_ASSIGN,    /* foo = "bar"     */
+    NT_OBJASSIGN, /* foo.bar = "baz" */
 
     /* functional */
     NT_CALL,
+    NT_FUNC,
 
     /* control flow */
     NT_IF,
     NT_WHILE
-
 } lfNodeType;
 
 /* typing */
@@ -130,6 +132,19 @@ typedef struct lfMapNode {
     lfArray(lfNode *) keys;
     lfArray(lfNode *) values;
 } lfMapNode;
+
+typedef struct lfAssignNode {
+    lfNodeType type;
+    lfToken variable;
+    lfNode *value;
+} lfAssignNode;
+
+typedef struct lfObjectAssignNode {
+    lfNodeType type;
+    lfNode *object;
+    lfNode *key;
+    lfNode *value;
+} lfObjectAssignNode;
 
 /* statements */
 

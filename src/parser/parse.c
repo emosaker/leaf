@@ -288,11 +288,22 @@ lfNode *parse_literal(lfParseCtx *ctx) {
         unop->value = expr;
         return (lfNode *)unop;
     } else if (ctx->current.type == TT_IDENTIFIER) {
-        lfVarAccessNode *access = alloc(lfVarAccessNode);
-        access->type = NT_VARACCESS;
-        access->var = ctx->current;
+        lfToken var = ctx->current;
         advance(ctx);
-        return (lfNode *)access;
+        if (ctx->current.type == TT_ASSIGN) {
+            advance(ctx);
+            lfNode *value = parse_expr(ctx);
+            lfAssignNode *assign = alloc(lfAssignNode);
+            assign->type = NT_ASSIGN;
+            assign->variable = var;
+            assign->value = value;
+            return (lfNode *)assign;
+        } else {
+            lfVarAccessNode *access = alloc(lfVarAccessNode);
+            access->type = NT_VARACCESS;
+            access->var = var;
+            return (lfNode *)access;
+        }
     } else if (ctx->current.type == TT_LBRACE) {
         lfToken lbrace = ctx->current;
         bool is_arr = false;
@@ -395,11 +406,26 @@ lfNode *parse_subscriptive(lfParseCtx *ctx) {
                 return NULL;
             }
             advance(ctx);
-            lfSubscriptionNode *sub = alloc(lfSubscriptionNode);
-            sub->type = NT_SUBSCRIBE;
-            sub->object = object;
-            sub->index = index;
-            object = (lfNode *)sub;
+            if (ctx->current.type != TT_ASSIGN) {
+                lfSubscriptionNode *sub = alloc(lfSubscriptionNode);
+                sub->type = NT_SUBSCRIBE;
+                sub->object = object;
+                sub->index = index;
+                object = (lfNode *)sub;
+            } else {
+                advance(ctx);
+                lfNode *value = parse_expr(ctx);
+                if (ctx->errored) {
+                    lf_node_delete(object);
+                    return NULL;
+                }
+                lfObjectAssignNode *assign = alloc(lfObjectAssignNode);
+                assign->type = NT_OBJASSIGN;
+                assign->object = object;
+                assign->key = index;
+                assign->value = value;
+                return (lfNode *)assign;
+            }
         } else if (ctx->current.type == TT_DOT) {
             advance(ctx);
             if (ctx->current.type != TT_IDENTIFIER) {
@@ -413,11 +439,27 @@ lfNode *parse_subscriptive(lfParseCtx *ctx) {
             index->type = NT_STRING;
             index->value = ctx->current;
             advance(ctx);
-            lfSubscriptionNode *sub = alloc(lfSubscriptionNode);
-            sub->type = NT_SUBSCRIBE;
-            sub->object = object;
-            sub->index = (lfNode *)index;
-            object = (lfNode *)sub;
+            if (ctx->current.type != TT_ASSIGN) {
+                lfSubscriptionNode *sub = alloc(lfSubscriptionNode);
+                sub->type = NT_SUBSCRIBE;
+                sub->object = object;
+                sub->index = (lfNode *)index;
+                object = (lfNode *)sub;
+            } else {
+                advance(ctx);
+                lfNode *value = parse_expr(ctx);
+                if (ctx->errored) {
+                    lf_node_delete(object);
+                    lf_node_delete((lfNode *)index);
+                    return NULL;
+                }
+                lfObjectAssignNode *assign = alloc(lfObjectAssignNode);
+                assign->type = NT_OBJASSIGN;
+                assign->object = object;
+                assign->key = (lfNode *)index;
+                assign->value = value;
+                return (lfNode *)assign;
+            }
         } else {
             lfToken lparen = ctx->current;
             lfArray(lfNode *) args = array_new(lfNode *, lf_node_deleter);
@@ -743,6 +785,19 @@ void lf_node_delete(lfNode *node) {
         case NT_VARACCESS: {
             lfVarAccessNode *var_access = (lfVarAccessNode *)node;
             token_deleter(&var_access->var);
+            free(node);
+        } break;
+        case NT_ASSIGN: {
+            lfAssignNode *assign = (lfAssignNode *)node;
+            token_deleter(&assign->variable);
+            lf_node_delete(assign->value);
+            free(node);
+        } break;
+        case NT_OBJASSIGN: {
+            lfObjectAssignNode *assign = (lfObjectAssignNode *)node;
+            lf_node_delete(assign->object);
+            lf_node_delete(assign->key);
+            lf_node_delete(assign->value);
             free(node);
         } break;
         case NT_INT:
