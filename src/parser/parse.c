@@ -786,6 +786,7 @@ lfNode *parse_statement(lfParseCtx *ctx) {
                     }
                     return NULL;
                 }
+                array_push(&body, statement);
             }
             if (ctx->current.type != TT_RBRACE) { /* eof */
                 error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '}'");
