@@ -35,7 +35,8 @@ typedef enum lfNodeType {
 
     /* control flow */
     NT_IF,
-    NT_WHILE
+    NT_WHILE,
+    NT_RETURN
 } lfNodeType;
 
 /* typing */
@@ -177,5 +178,10 @@ typedef struct lfFunctionNode {
     lfArray(lfNode *) body;
     lfType *return_type;
 } lfFunctionNode;
+
+typedef struct lfReturnNode {
+    lfNodeType type;
+    lfNode *value;
+} lfReturnNode;
 
 #endif /* LEAF_NODE_H */

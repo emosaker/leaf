@@ -26,9 +26,28 @@ typedef struct lfParseCtx {
     const char *source;
 } lfParseCtx;
 
+typedef struct lfParseCtxState {
+    size_t old_idx;
+    lfToken old;
+} lfParseCtxState;
+
 void advance(lfParseCtx *ctx) {
     ctx->current_idx += 1;
     ctx->current = ctx->tokens[ctx->current_idx];
+}
+
+lfParseCtxState save(lfParseCtx *ctx) {
+    return (lfParseCtxState) {
+        .old_idx = ctx->current_idx,
+        .old = ctx->current
+    };
+}
+
+void restore(lfParseCtx *ctx, const lfParseCtxState *state) {
+    ctx->current = state->old;
+    ctx->current_idx = state->old_idx;
+    ctx->errored = false;
+    ctx->described = false;
 }
 
 void lf_node_deleter(lfNode **node) { /* for use with the lfArray type */
@@ -809,6 +828,17 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             f->params = params;
             f->return_type = type;
             return (lfNode *)f;
+        } else if (!strcmp(ctx->current.value, "return")) {
+            advance(ctx);
+            lfParseCtxState old = save(ctx);
+            lfNode *expr = parse_comparative(ctx);
+            if (ctx->errored) {
+                restore(ctx, &old);
+            }
+            lfReturnNode *ret = alloc(lfReturnNode);
+            ret->type = NT_RETURN;
+            ret->value = expr;
+            return (lfNode *)ret;
         }
     }
 
@@ -937,6 +967,13 @@ void lf_node_delete(lfNode *node) {
                 type_delete(f->return_type);
             }
             free(node);
+        } break;
+        case NT_RETURN: {
+            lfReturnNode *ret = (lfReturnNode *)node;
+            if (ret->value) {
+                lf_node_delete(ret->value);
+            }
+            free(ret);
         } break;
         case NT_INT:
         case NT_FLOAT:
