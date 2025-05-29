@@ -283,6 +283,9 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                                 case 'x':
                                     if (!source[i + 2] || !source[i + 3]) {
                                         error_print(file, source, i, i + 1, "incomplete hexadecimal escape");
+                                        array_delete(&buffer);
+                                        array_delete(&tokens);
+                                        return NULL;
                                     }
                                     char tmp[3] = { source[i + 2], source[i + 3], 0 };
                                     char v = strtol(tmp, NULL, 16);
@@ -291,7 +294,9 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                                     break;
                                 default:
                                     error_print(file, source, i, i + 1, "unknown escape sequence");
-                                    break;
+                                    array_delete(&buffer);
+                                    array_delete(&tokens);
+                                    return NULL;
                             }
                             i += 2;
                         } else {
