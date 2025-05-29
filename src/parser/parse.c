@@ -13,6 +13,7 @@
 #include "lib/error.h"
 #include "parser/tokenize.h"
 
+/* TODO: add error checking everywhere this is called */
 #define alloc(TYPE) (TYPE *)malloc(sizeof(TYPE))
 
 typedef struct lfParseCtx {
@@ -77,6 +78,8 @@ void type_delete(lfType *t) {
     } else if (t->type == VT_TYPENAME) {
         lfTypeName *tn = (lfTypeName *)t;
         token_deleter(&tn->typename);
+        free(t);
+    } else if (t->type == VT_ANY) {
         free(t);
     }
 }
@@ -725,10 +728,65 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             return (lfNode *)whilenode;
         } else if (!strcmp(ctx->current.value, "fn")) {
             advance(ctx);
+            lfArray(lfToken) type_names = array_new(lfToken, token_deleter);
+            lfArray(lfType *) types = array_new(lfType *, type_deleter);
+            if (ctx->current.type == TT_LT) {
+                lfToken lt = ctx->current;
+                advance(ctx);
+                if (ctx->current.type == TT_COMMA) {
+                    error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "unexpected ','");
+                    ctx->errored = true;
+                    ctx->described = true;
+                    array_delete(&type_names);
+                    array_delete(&types);
+                    return NULL;
+                }
+                do {
+                    if (ctx->current.type == TT_COMMA) {
+                        advance(ctx);
+                    }
+                    if (ctx->current.type != TT_IDENTIFIER) {
+                        error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected name");
+                        ctx->errored = true;
+                        ctx->described = true;
+                        array_delete(&type_names);
+                        array_delete(&types);
+                        return NULL;
+                    }
+                    array_push(&type_names, ctx->current);
+                    advance(ctx);
+                    if (ctx->current.type == TT_COLON) {
+                        advance(ctx);
+                        lfType *t = parse_type(ctx);
+                        if (ctx->errored) {
+                            array_delete(&type_names);
+                            array_delete(&types);
+                            return NULL;
+                        }
+                        array_push(&types, t);
+                    } else {
+                        lfType *t = alloc(lfType);
+                        t->type = VT_ANY;
+                        array_push(&types, t);
+                    }
+                } while (ctx->current.type == TT_COMMA);
+                if (ctx->current.type != TT_GT) {
+                    error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '>'");
+                    error_print(ctx->file, ctx->source, lt.idx_start, lt.idx_end, "... to close");
+                    ctx->errored = true;
+                    ctx->described = true;
+                    array_delete(&type_names);
+                    array_delete(&types);
+                    return NULL;
+                }
+                advance(ctx);
+            }
             if (ctx->current.type != TT_IDENTIFIER) {
                 error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected function name");
                 ctx->errored = true;
                 ctx->described = true;
+                array_delete(&type_names);
+                array_delete(&types);
                 return NULL;
             }
             lfToken name = ctx->current;
@@ -738,6 +796,8 @@ lfNode *parse_statement(lfParseCtx *ctx) {
                 error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '('");
                 ctx->errored = true;
                 ctx->described = true;
+                array_delete(&type_names);
+                array_delete(&types);
                 return NULL;
             }
             advance(ctx);
@@ -755,6 +815,8 @@ lfNode *parse_statement(lfParseCtx *ctx) {
                         }
                         token_deleter(&name);
                         array_delete(&params);
+                        array_delete(&type_names);
+                        array_delete(&types);
                         return NULL;
                     }
                     array_push(&params, param);
@@ -767,6 +829,8 @@ lfNode *parse_statement(lfParseCtx *ctx) {
                 ctx->errored = true;
                 token_deleter(&name);
                 array_delete(&params);
+                array_delete(&type_names);
+                array_delete(&types);
                 return NULL;
             }
             advance(ctx);
@@ -777,6 +841,8 @@ lfNode *parse_statement(lfParseCtx *ctx) {
                 if (ctx->errored) {
                     token_deleter(&name);
                     array_delete(&params);
+                    array_delete(&type_names);
+                    array_delete(&types);
                     return NULL;
                 }
             }
@@ -790,6 +856,8 @@ lfNode *parse_statement(lfParseCtx *ctx) {
                 if (type) {
                     type_delete(type);
                 }
+                array_delete(&type_names);
+                array_delete(&types);
                 return NULL;
             }
             advance(ctx);
@@ -803,6 +871,8 @@ lfNode *parse_statement(lfParseCtx *ctx) {
                     if (type) {
                         type_delete(type);
                     }
+                    array_delete(&type_names);
+                    array_delete(&types);
                     return NULL;
                 }
                 array_push(&body, statement);
@@ -818,6 +888,8 @@ lfNode *parse_statement(lfParseCtx *ctx) {
                 if (type) {
                     type_delete(type);
                 }
+                array_delete(&type_names);
+                array_delete(&types);
                 return NULL;
             }
             advance(ctx);
@@ -827,6 +899,8 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             f->body = body;
             f->params = params;
             f->return_type = type;
+            f->type_names = type_names;
+            f->types = types;
             return (lfNode *)f;
         } else if (!strcmp(ctx->current.value, "return")) {
             advance(ctx);
@@ -867,7 +941,18 @@ lfNode *lf_parse(const char *source, const char *file) {
         .described = false
     };
 
-    lfNode *statement = parse_statement(&ctx);
+    lfCompoundNode *chunk = alloc(lfCompoundNode);
+    chunk->type = NT_COMPOUND;
+    chunk->statements = array_new(lfNode *, lf_node_deleter);
+    while (ctx.current.type != TT_EOF) {
+        lfNode *statement = parse_statement(&ctx);
+        if (ctx.errored) {
+            lf_node_delete((lfNode *)chunk);
+            chunk = NULL;
+            break;
+        }
+        array_push(&chunk->statements, statement);
+    }
 
     for (size_t i = 0; i < length(&tokens); i++) {
         if (tokens[i].type == TT_KEYWORD || (ctx.errored && i >= ctx.current_idx)) {
@@ -876,7 +961,7 @@ lfNode *lf_parse(const char *source, const char *file) {
     }
     array_delete(&tokens);
 
-    return statement;
+    return (lfNode *)chunk;
 }
 
 void lf_node_delete(lfNode *node) {
@@ -963,6 +1048,8 @@ void lf_node_delete(lfNode *node) {
             token_deleter(&f->name);
             array_delete(&f->params);
             array_delete(&f->body);
+            array_delete(&f->type_names);
+            array_delete(&f->types);
             if (f->return_type) {
                 type_delete(f->return_type);
             }
@@ -973,7 +1060,12 @@ void lf_node_delete(lfNode *node) {
             if (ret->value) {
                 lf_node_delete(ret->value);
             }
-            free(ret);
+            free(node);
+        } break;
+        case NT_COMPOUND: {
+            lfCompoundNode *comp = (lfCompoundNode *)node;
+            array_delete(&comp->statements);
+            free(node);
         } break;
         case NT_INT:
         case NT_FLOAT:

@@ -36,7 +36,10 @@ typedef enum lfNodeType {
     /* control flow */
     NT_IF,
     NT_WHILE,
-    NT_RETURN
+    NT_RETURN,
+
+    /* misc */
+    NT_COMPOUND
 } lfNodeType;
 
 /* typing */
@@ -47,7 +50,8 @@ typedef enum lfTypeType {
     VT_INTERSECTION,
     VT_FUNC,
     VT_ARRAY,
-    VT_MAP
+    VT_MAP,
+    VT_ANY /* for empty generics, like fn<T> ... where T is any */
 } lfTypeType;
 
 typedef struct lfNode {
@@ -177,11 +181,19 @@ typedef struct lfFunctionNode {
     lfArray(lfVarDeclNode *) params;
     lfArray(lfNode *) body;
     lfType *return_type;
+    /* for generic typing */
+    lfArray(lfToken) type_names;
+    lfArray(lfType *) types;
 } lfFunctionNode;
 
 typedef struct lfReturnNode {
     lfNodeType type;
     lfNode *value;
 } lfReturnNode;
+
+typedef struct lfCompoundNode {
+    lfNodeType type;
+    lfArray(lfNode *) statements;
+} lfCompoundNode;
 
 #endif /* LEAF_NODE_H */
