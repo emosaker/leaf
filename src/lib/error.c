@@ -13,6 +13,9 @@ void error_underline_code(const char *source, size_t idx_start, size_t idx_end) 
     while (line_start > 0 && source[line_start] && source[line_start] != '\n') {
         line_start -= 1;
     }
+    if (source[line_start] == '\n') {
+        line_start += 1;
+    }
 
     size_t i = line_start;
     size_t j = line_start;
