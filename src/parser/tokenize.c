@@ -13,7 +13,15 @@
 #include "lib/error.h"
 
 const char *keywords[] = {
-    "var", "const", "ref", "fn", "class", "if", "while", "for", "continue", "break", "return", NULL
+    /* var decl */
+    "var", "const", "ref",
+    /* functions and classes */
+    "fn", "class", "struct",
+    /* control flow */
+    "if", "while", "for", "continue", "break", "return",
+    /* imports */
+    "include",
+    NULL
 };
 
 void token_deleter(lfToken *tok) {

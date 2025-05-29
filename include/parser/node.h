@@ -38,6 +38,9 @@ typedef enum lfNodeType {
     NT_WHILE,
     NT_RETURN,
 
+    /* types */
+    NT_CLASS,
+
     /* misc */
     NT_COMPOUND
 } lfNodeType;
@@ -195,5 +198,14 @@ typedef struct lfCompoundNode {
     lfNodeType type;
     lfArray(lfNode *) statements;
 } lfCompoundNode;
+
+typedef struct lfClassNode {
+    lfNodeType type;
+    lfToken name;
+    lfArray(lfNode *) body;
+    /* for generic typing */
+    lfArray(lfToken) type_names;
+    lfArray(lfType *) types;
+} lfClassNode;
 
 #endif /* LEAF_NODE_H */
