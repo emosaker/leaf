@@ -79,7 +79,7 @@ static inline void token_singledoubledouble(const char *source, size_t *index, l
 }
 
 lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
-    lfArray(lfToken) tokens = array_new(lfToken);
+    lfArray(lfToken) tokens = array_new(lfToken, token_deleter);
 
     size_t i = 0;
     while (source[i]) {
@@ -99,6 +99,33 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                 token_singledouble(source, &i, &tokens, TT_MUL, TT_MULASSIGN, '=');
                 break;
             case '/':
+                if (source[i + 1] == '/') {
+                    while (source[i] && source[i] != '\n') {
+                        i += 1;
+                    }
+                    if (source[i] == '\n') {
+                        i += 1;
+                    }
+                    break;
+                } else if (source[i + 1] == '*') {
+                    size_t start = i;
+                    i += 2;
+                    bool closed = false;
+                    while (source[i]) {
+                        if (source[i] && source[i] == '*' && source[i + 1] && source[i + 1] == '/') {
+                            closed = true;
+                            i += 2;
+                            break;
+                        }
+                        i += 1;
+                    }
+                    if (!closed) {
+                        error_print(file, source, start, start + 2, "unclosed '/*'");
+                        array_delete(&tokens);
+                        return NULL;
+                    }
+                    break;
+                }
                 token_singledouble(source, &i, &tokens, TT_DIV, TT_DIVASSIGN, '=');
                 break;
 
@@ -293,5 +320,6 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
 
     array_push(&tokens, token_single(TT_EOF, i - 1));
 
+    deleter(&tokens) = NULL;
     return tokens;
 }
