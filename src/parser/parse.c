@@ -934,17 +934,10 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             return (lfNode *)ret;
         } else if (!strcmp(ctx->current.value, "class")) {
             advance(ctx);
-            lfArray(lfToken) type_names = array_new(lfToken, token_deleter);
-            lfArray(lfType *) types = array_new(lfType *, type_deleter);
-            if (!parse_generics(ctx, &type_names, &types)) {
-                return NULL;
-            }
             if (ctx->current.type != TT_IDENTIFIER) {
                 error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected class name");
                 ctx->errored = true;
                 ctx->described = true;
-                array_delete(&type_names);
-                array_delete(&types);
                 return NULL;
             }
             lfToken name = ctx->current;
@@ -954,8 +947,6 @@ lfNode *parse_statement(lfParseCtx *ctx) {
                 error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '{'");
                 ctx->errored = true;
                 ctx->described = true;
-                array_delete(&type_names);
-                array_delete(&types);
                 token_deleter(&name);
                 return NULL;
             }
@@ -974,8 +965,6 @@ lfNode *parse_statement(lfParseCtx *ctx) {
                     if (statement == NULL) {
                         error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected 'var', 'const', 'fn', or '}'");
                     }
-                    array_delete(&type_names);
-                    array_delete(&types);
                     array_delete(&body);
                     token_deleter(&name);
                     ctx->errored = true;
@@ -989,8 +978,6 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             cls->type = NT_CLASS;
             cls->name = name;
             cls->body = body;
-            cls->type_names = type_names;
-            cls->types = types;
             return (lfNode *)cls;
         }
     }
@@ -1138,8 +1125,6 @@ void lf_node_delete(lfNode *node) {
             lfClassNode *cls = (lfClassNode *)node;
             token_deleter(&cls->name);
             array_delete(&cls->body);
-            array_delete(&cls->types);
-            array_delete(&cls->type_names);
             free(node);
         } break;
         case NT_RETURN: {

@@ -203,9 +203,6 @@ typedef struct lfClassNode {
     lfNodeType type;
     lfToken name;
     lfArray(lfNode *) body;
-    /* for generic typing */
-    lfArray(lfToken) type_names;
-    lfArray(lfType *) types;
 } lfClassNode;
 
 #endif /* LEAF_NODE_H */
