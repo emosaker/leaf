@@ -42,7 +42,8 @@ typedef enum lfNodeType {
     NT_CLASS,
 
     /* misc */
-    NT_COMPOUND
+    NT_COMPOUND,
+    NT_IMPORT
 } lfNodeType;
 
 /* typing */
@@ -204,5 +205,10 @@ typedef struct lfClassNode {
     lfToken name;
     lfArray(lfNode *) body;
 } lfClassNode;
+
+typedef struct lfImportNode {
+    lfNodeType type;
+    lfArray(lfToken) path;
+} lfImportNode;
 
 #endif /* LEAF_NODE_H */

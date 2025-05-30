@@ -979,6 +979,34 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             cls->name = name;
             cls->body = body;
             return (lfNode *)cls;
+        } else if (!strcmp(ctx->current.value, "include")) {
+            advance(ctx);
+            lfArray(lfToken) path = array_new(lfToken, token_deleter);
+            if (ctx->current.type != TT_IDENTIFIER) {
+                error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected include path");
+                ctx->errored = true;
+                ctx->described = true;
+                array_delete(&path);
+                return NULL;
+            }
+            array_push(&path, ctx->current);
+            advance(ctx);
+            while (ctx->current.type == TT_DOT) {
+                advance(ctx);
+                if (ctx->current.type != TT_IDENTIFIER) {
+                    error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected include path");
+                    ctx->errored = true;
+                    ctx->described = true;
+                    array_delete(&path);
+                    return NULL;
+                }
+                array_push(&path, ctx->current);
+                advance(ctx);
+            }
+            lfImportNode *import = alloc(lfImportNode);
+            import->type = NT_IMPORT;
+            import->path = path;
+            return (lfNode *)import;
         }
     }
 
@@ -1137,6 +1165,11 @@ void lf_node_delete(lfNode *node) {
         case NT_COMPOUND: {
             lfCompoundNode *comp = (lfCompoundNode *)node;
             array_delete(&comp->statements);
+            free(node);
+        } break;
+        case NT_IMPORT: {
+            lfImportNode *import = (lfImportNode *)node;
+            array_delete(&import->path);
             free(node);
         } break;
         case NT_INT:
