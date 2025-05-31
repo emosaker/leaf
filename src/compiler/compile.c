@@ -17,7 +17,7 @@
 typedef struct lfCompilerCtx {
     lfArray(lfProto) protos;
     lfArray(char *) strings;
-    lfArray(int64_t) ints;
+    lfArray(uint64_t) ints;
     lfArray(uint8_t) current;
 } lfCompilerCtx;
 
@@ -33,24 +33,26 @@ static inline void emit_op(lfCompilerCtx *ctx, lfOpCode op) {
     array_push(&ctx->current, op);
 }
 
-static inline void emit_i64(lfCompilerCtx *ctx, int64_t value) {
+static inline void emit_u24(lfCompilerCtx *ctx, uint32_t value) {
+    array_push(&ctx->current, (value >> 0)  & 0xFF);
+    array_push(&ctx->current, (value >> 8)  & 0xFF);
+    array_push(&ctx->current, (value >> 16) & 0xFF);
+}
+
+static inline void emit_u64(lfCompilerCtx *ctx, uint64_t value) {
     array_push(&ctx->ints, value);
     size_t idx = length(&ctx->ints) - 1;
-    array_push(&ctx->current, (idx >> 0)  & 0xFF);
-    array_push(&ctx->current, (idx >> 8)  & 0xFF);
-    array_push(&ctx->current, (idx >> 16) & 0xFF);
+    emit_u24(ctx, idx);
 }
 
 bool visit_int(lfCompilerCtx *ctx, lfLiteralNode *node) {
     uint64_t value = strtoll(node->value.value, NULL, 10);
     if (value >= 0xFFFFFF) { /* 2^24 */
         emit_op(ctx, OP_PUSHLI);
-        emit_i64(ctx, value);
+        emit_u64(ctx, value);
     } else {
         emit_op(ctx, OP_PUSHSI);
-        array_push(&ctx->current, (value >> 0)  & 0xFF);
-        array_push(&ctx->current, (value >> 8)  & 0xFF);
-        array_push(&ctx->current, (value >> 16) & 0xFF);
+        emit_u24(ctx, value);
     }
     return true;
 }
@@ -73,7 +75,7 @@ lfChunk *lf_compile(const char *source, const char *file) {
     lfCompilerCtx ctx = (lfCompilerCtx) {
         .protos = array_new(lfProto, proto_deleter),
         .strings = array_new(char *, string_deleter),
-        .ints = array_new(int64_t),
+        .ints = array_new(uint64_t),
         .current = array_new(uint8_t)
     };
 
@@ -105,7 +107,7 @@ lfChunk *lf_compile(const char *source, const char *file) {
 
     memcpy(chunk->protos, ctx.protos, sizeof(lfProto) * length(&ctx.protos));
     memcpy(chunk->strings, ctx.strings, sizeof(char *) * length(&ctx.strings));
-    memcpy(chunk->ints, ctx.ints, sizeof(int64_t) * length(&ctx.ints));
+    memcpy(chunk->ints, ctx.ints, sizeof(uint64_t) * length(&ctx.ints));
 
     deleter(&ctx.strings) = NULL;
     deleter(&ctx.protos) = NULL;

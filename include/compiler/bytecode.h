@@ -23,7 +23,7 @@ typedef struct lfChunk {
     size_t szstrings;
     char **strings;
     size_t szints;
-    int64_t *ints;
+    uint64_t *ints;
     size_t szprotos;
     lfProto *protos;
     size_t main;

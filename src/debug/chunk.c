@@ -11,11 +11,11 @@ void print_instruction(const lfChunk *chunk, uint32_t *code, size_t *i) {
     uint32_t ins = code[*i];
     switch (INS_OP(ins)) {
         case OP_PUSHSI:
-            printf("pushshort %d\n", INS_E(ins));
+            printf("pushshort %u\n", INS_E(ins));
             *i += 1;
             break;
         case OP_PUSHLI:
-            printf("pushlong %ld\n", chunk->ints[INS_E(ins)]);
+            printf("pushlong %lu\n", chunk->ints[INS_E(ins)]);
             *i += 1;
             break;
     }
