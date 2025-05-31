@@ -12,13 +12,34 @@ void print_instruction(const lfChunk *chunk, uint32_t *code, size_t *i) {
     switch (INS_OP(ins)) {
         case OP_PUSHSI:
             printf("pushshort %u\n", INS_E(ins));
-            *i += 1;
             break;
         case OP_PUSHLI:
             printf("pushlong %lu\n", chunk->ints[INS_E(ins)]);
-            *i += 1;
             break;
+        case OP_PUSHS:
+            printf("pushstring \"%s\"\n", chunk->strings[INS_E(ins)]);
+            break;
+
+        case OP_ADD: printf("add\n"); break;
+        case OP_SUB: printf("sub\n"); break;
+        case OP_MUL: printf("mul\n"); break;
+        case OP_DIV: printf("div\n"); break;
+        case OP_POW: printf("pow\n"); break;
+        case OP_EQ: printf("eq\n"); break;
+        case OP_NE: printf("ne\n"); break;
+        case OP_LT: printf("lt\n"); break;
+        case OP_GT: printf("gt\n"); break;
+        case OP_LE: printf("le\n"); break;
+        case OP_GE: printf("ge\n"); break;
+        case OP_BAND: printf("band\n"); break;
+        case OP_BOR: printf("bor\n"); break;
+        case OP_BXOR: printf("bxor\n"); break;
+        case OP_BLSH: printf("blsh\n"); break;
+        case OP_BRSH: printf("brsh\n"); break;
+        case OP_AND: printf("band\n"); break;
+        case OP_OR: printf("bor\n"); break;
     }
+    *i += 1;
 }
 
 void chunk_print(const lfChunk *chunk) {

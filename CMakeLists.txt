@@ -9,6 +9,7 @@ set(LEAF_COMPILER_SOURCES
     src/parser/tokenize.c
     src/parser/parse.c
     src/compiler/compile.c
+    src/compiler/util.c
     src/debug/chunk.c
 )
 

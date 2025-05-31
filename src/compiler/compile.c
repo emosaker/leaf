@@ -11,15 +11,10 @@
 #include "lib/array.h"
 #include "compiler/bytecode.h"
 #include "compiler/compile.h"
+#include "compiler/util.h"
 #include "parser/node.h"
 #include "parser/parse.h"
-
-typedef struct lfCompilerCtx {
-    lfArray(lfProto) protos;
-    lfArray(char *) strings;
-    lfArray(uint64_t) ints;
-    lfArray(uint8_t) current;
-} lfCompilerCtx;
+#include "parser/token.h"
 
 void proto_deleter(lfProto *proto) {
     free(proto->code);
@@ -29,37 +24,56 @@ void string_deleter(char **string) {
     free(*string);
 }
 
-static inline void emit_op(lfCompilerCtx *ctx, lfOpCode op) {
-    array_push(&ctx->current, op);
-}
+bool visit(lfCompilerCtx *ctx, lfNode *node);
 
-static inline void emit_u24(lfCompilerCtx *ctx, uint32_t value) {
-    array_push(&ctx->current, (value >> 0)  & 0xFF);
-    array_push(&ctx->current, (value >> 8)  & 0xFF);
-    array_push(&ctx->current, (value >> 16) & 0xFF);
-}
-
-static inline void emit_u64(lfCompilerCtx *ctx, uint64_t value) {
-    array_push(&ctx->ints, value);
-    size_t idx = length(&ctx->ints) - 1;
-    emit_u24(ctx, idx);
+bool visit_string(lfCompilerCtx *ctx, lfLiteralNode *node) {
+    emit_op(ctx, OP_PUSHS);
+    emit_u24(ctx, new_string(ctx, node->value.value, strlen(node->value.value)));
+    return true;
 }
 
 bool visit_int(lfCompilerCtx *ctx, lfLiteralNode *node) {
     uint64_t value = strtoll(node->value.value, NULL, 10);
     if (value >= 0xFFFFFF) { /* 2^24 */
-        emit_op(ctx, OP_PUSHLI);
-        emit_u64(ctx, value);
+        emit_op_e(ctx, OP_PUSHLI, new_u64(ctx, value));
     } else {
-        emit_op(ctx, OP_PUSHSI);
-        emit_u24(ctx, value);
+        emit_op_e(ctx, OP_PUSHSI, value);
     }
+    return true;
+}
+
+bool visit_binop(lfCompilerCtx *ctx, lfBinaryOpNode *node) {
+    if (!visit(ctx, node->lhs)) return false;
+    if (!visit(ctx, node->rhs)) return false;
+    switch (node->op.type) {
+        case TT_ADD: emit_op(ctx, OP_ADD); break;
+        case TT_SUB: emit_op(ctx, OP_SUB); break;
+        case TT_MUL: emit_op(ctx, OP_MUL); break;
+        case TT_DIV: emit_op(ctx, OP_DIV); break;
+        case TT_EQ: emit_op(ctx, OP_EQ); break;
+        case TT_NE: emit_op(ctx, OP_NE); break;
+        case TT_LT: emit_op(ctx, OP_LT); break;
+        case TT_GT: emit_op(ctx, OP_GT); break;
+        case TT_LE: emit_op(ctx, OP_LE); break;
+        case TT_BAND: emit_op(ctx, OP_BAND); break;
+        case TT_BOR: emit_op(ctx, OP_BOR); break;
+        case TT_BXOR: emit_op(ctx, OP_BXOR); break;
+        case TT_LSHIFT: emit_op(ctx, OP_BLSH); break;
+        case TT_RSHIFT: emit_op(ctx, OP_BRSH); break;
+        case TT_AND: emit_op(ctx, OP_AND); break;
+        case TT_OR: emit_op(ctx, OP_OR); break;
+        default:
+            return false;
+    }
+
     return true;
 }
 
 bool visit(lfCompilerCtx *ctx, lfNode *node) {
     switch (node->type) {
         case NT_INT: return visit_int(ctx, (lfLiteralNode *)node);
+        case NT_STRING: return visit_string(ctx, (lfLiteralNode *)node);
+        case NT_BINARYOP: return visit_binop(ctx, (lfBinaryOpNode *)node);
         default:
             printf("unhandled: %d\n", node->type);
             return false;
@@ -101,7 +115,7 @@ lfChunk *lf_compile(const char *source, const char *file) {
     chunk->szprotos = length(&ctx.protos);
     chunk->strings = malloc(sizeof(char *) * length(&ctx.strings));
     chunk->szstrings = length(&ctx.strings);
-    chunk->ints = malloc(sizeof(int64_t) * length(&ctx.ints));
+    chunk->ints = malloc(sizeof(uint64_t) * length(&ctx.ints));
     chunk->szints = length(&ctx.ints);
     chunk->main = length(&ctx.protos) - 1;
 

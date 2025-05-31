@@ -11,6 +11,29 @@
 typedef enum lfOpCode {
     OP_PUSHSI,
     OP_PUSHLI,
+    OP_PUSHS,
+
+    OP_ADD,
+    OP_SUB,
+    OP_MUL,
+    OP_DIV,
+    OP_POW,
+
+    OP_EQ,
+    OP_NE,
+    OP_LT,
+    OP_GT,
+    OP_LE,
+    OP_GE,
+
+    OP_BAND,
+    OP_BOR,
+    OP_BXOR,
+    OP_BLSH,
+    OP_BRSH,
+
+    OP_AND,
+    OP_OR,
 } lfOpCode;
 
 typedef struct lfProto {
