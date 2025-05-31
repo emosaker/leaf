@@ -38,6 +38,9 @@ void print_instruction(const lfChunk *chunk, uint32_t *code, size_t *i) {
         case OP_BRSH: printf("brsh\n"); break;
         case OP_AND: printf("band\n"); break;
         case OP_OR: printf("bor\n"); break;
+
+        case OP_NEG: printf("neg\n"); break;
+        case OP_NOT: printf("not\n"); break;
     }
     *i += 1;
 }
@@ -46,14 +49,14 @@ void chunk_print(const lfChunk *chunk) {
     for (int i = 0; i < chunk->szprotos; i++) {
         lfProto proto = chunk->protos[i];
         if (proto.name != 0) {
-            printf("%s:", chunk->strings[proto.name - 1]);
+            printf("%s", chunk->strings[proto.name - 1]);
         } else {
-            printf("<anonymous>:");
+            printf("<anonymous>");
         }
         if (i == chunk->main) {
             printf(" (main):\n");
         } else {
-            printf("\n");
+            printf(":\n");
         }
         size_t i = 0;
         while (i < proto.szcode) {

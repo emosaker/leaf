@@ -7,19 +7,19 @@
 #include "compiler/compile.h"
 #include "compiler/util.h"
 
-void emit_op_abc(lfCompilerCtx *ctx, lfOpCode op, uint8_t a, uint8_t b, uint8_t c) {
+void emit_insn_abc(lfCompilerCtx *ctx, lfOpCode op, uint8_t a, uint8_t b, uint8_t c) {
     array_push(&ctx->current, op);
     array_push(&ctx->current, a);
     array_push(&ctx->current, b);
     array_push(&ctx->current, c);
 }
 
-void emit_op_e(lfCompilerCtx *ctx, lfOpCode op, uint32_t e) {
+void emit_insn_e(lfCompilerCtx *ctx, lfOpCode op, uint32_t e) {
     array_push(&ctx->current, op);
     emit_u24(ctx, e);
 }
 void emit_op(lfCompilerCtx *ctx, lfOpCode op) {
-    emit_op_e(ctx, op, 0);
+    emit_insn_e(ctx, op, 0);
 }
 
 void emit_u24(lfCompilerCtx *ctx, uint32_t value) {

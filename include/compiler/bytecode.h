@@ -34,6 +34,9 @@ typedef enum lfOpCode {
 
     OP_AND,
     OP_OR,
+
+    OP_NEG,
+    OP_NOT
 } lfOpCode;
 
 typedef struct lfProto {

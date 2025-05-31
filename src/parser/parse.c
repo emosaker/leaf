@@ -298,10 +298,10 @@ lfNode *parse_literal(lfParseCtx *ctx) {
         }
         advance(ctx);
         return expr;
-    } else if (ctx->current.type == TT_SUB) {
+    } else if (ctx->current.type == TT_SUB || ctx->current.type == TT_NOT) {
         lfToken op = ctx->current;
         advance(ctx);
-        lfNode *expr = parse_expr(ctx);
+        lfNode *expr = parse_literal(ctx);
         if (ctx->errored) {
             return NULL;
         }

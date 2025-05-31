@@ -27,17 +27,16 @@ void string_deleter(char **string) {
 bool visit(lfCompilerCtx *ctx, lfNode *node);
 
 bool visit_string(lfCompilerCtx *ctx, lfLiteralNode *node) {
-    emit_op(ctx, OP_PUSHS);
-    emit_u24(ctx, new_string(ctx, node->value.value, strlen(node->value.value)));
+    emit_insn_e(ctx, OP_PUSHS, new_string(ctx, node->value.value, strlen(node->value.value)));
     return true;
 }
 
 bool visit_int(lfCompilerCtx *ctx, lfLiteralNode *node) {
     uint64_t value = strtoll(node->value.value, NULL, 10);
     if (value >= 0xFFFFFF) { /* 2^24 */
-        emit_op_e(ctx, OP_PUSHLI, new_u64(ctx, value));
+        emit_insn_e(ctx, OP_PUSHLI, new_u64(ctx, value));
     } else {
-        emit_op_e(ctx, OP_PUSHSI, value);
+        emit_insn_e(ctx, OP_PUSHSI, value);
     }
     return true;
 }
@@ -62,7 +61,19 @@ bool visit_binop(lfCompilerCtx *ctx, lfBinaryOpNode *node) {
         case TT_RSHIFT: emit_op(ctx, OP_BRSH); break;
         case TT_AND: emit_op(ctx, OP_AND); break;
         case TT_OR: emit_op(ctx, OP_OR); break;
-        default:
+        default: /* unreachable for any AST produced by the parser */
+            return false;
+    }
+
+    return true;
+}
+
+bool visit_unop(lfCompilerCtx *ctx, lfUnaryOpNode *node) {
+    if (!visit(ctx, node->value)) return false;
+    switch (node->op.type) {
+        case TT_SUB: emit_op(ctx, OP_NEG); break;
+        case TT_NOT: emit_op(ctx, OP_NOT); break;
+        default: /* unreachable for any AST produced by the parser */
             return false;
     }
 
@@ -74,6 +85,7 @@ bool visit(lfCompilerCtx *ctx, lfNode *node) {
         case NT_INT: return visit_int(ctx, (lfLiteralNode *)node);
         case NT_STRING: return visit_string(ctx, (lfLiteralNode *)node);
         case NT_BINARYOP: return visit_binop(ctx, (lfBinaryOpNode *)node);
+        case NT_UNARYOP: return visit_unop(ctx, (lfUnaryOpNode *)node);
         default:
             printf("unhandled: %d\n", node->type);
             return false;
