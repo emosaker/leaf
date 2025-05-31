@@ -8,6 +8,8 @@ set(LEAF_COMPILER_SOURCES
     src/lib/error.c
     src/parser/tokenize.c
     src/parser/parse.c
+    src/compiler/compile.c
+    src/debug/chunk.c
 )
 
 add_executable(leafc src/leafc.c ${LEAF_COMPILER_SOURCES})

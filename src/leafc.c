@@ -6,8 +6,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "parser/node.h"
-#include "parser/parse.h"
+#include "compiler/compile.h"
+#include "debug/chunk.h"
 #include "lib/ansi.h"
 
 #define FATAL FG_RED BOLD "fatal: " RESET
@@ -39,13 +39,15 @@ int main(int argc, const char **argv) {
     }
     buffer[sz] = 0;
 
-    lfNode *ast = lf_parse(buffer, file);
-    if (ast == NULL) {
+    lfChunk *chunk = lf_compile(buffer, file);
+    if (chunk == NULL) {
         free(buffer);
         return 1;
     }
 
-    lf_node_delete(ast);
+    chunk_print(chunk);
+
+    lf_chunk_delete(chunk);
     free(buffer);
     return 0;
 }
