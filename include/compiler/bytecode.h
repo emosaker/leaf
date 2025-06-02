@@ -59,6 +59,6 @@ typedef struct lfChunk {
 #define INS_A(INSTRUCTION)  (((INSTRUCTION) >> 8)  & 0xFF)
 #define INS_B(INSTRUCTION)  (((INSTRUCTION) >> 16) & 0xFF)
 #define INS_C(INSTRUCTION)  (((INSTRUCTION) >> 24) & 0xFF)
-#define INS_E(INSTRUCTION)  (INS_A(INSTRUCTION) | INS_B(INSTRUCTION) << 8 | INS_C(INSTRUCTION) << 16)
+#define INS_E(INSTRUCTION)  (((INSTRUCTION) & 0xFFFFFF00) >> 8)
 
 #endif /* LEAF_BYTECODE_H */
