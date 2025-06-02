@@ -35,6 +35,10 @@ uint32_t new_u64(lfCompilerCtx *ctx, uint64_t value) {
 }
 
 uint32_t new_string(lfCompilerCtx *ctx, char *value, size_t length) {
+    for (size_t i = 0; i < length(&ctx->strings); i++) { /* TODO: Replace with a map for O(1) insertion */
+        if (!strncmp(ctx->strings[i], value, length))
+            return i;
+    }
     char *clone = malloc(length + 1);
     memcpy(clone, value, length);
     clone[length] = 0;
