@@ -25,8 +25,28 @@ void print_instruction(const lfChunk *chunk, uint32_t *code, size_t *i) {
         case OP_DUP:
             printf("dup %u\n", INS_E(ins));
             break;
+
         case OP_GETGLOBAL:
             printf("getglob %s\n", chunk->strings[INS_E(ins)]);
+            break;
+        case OP_SETGLOBAL:
+            printf("setglob %s\n", chunk->strings[INS_E(ins)]);
+            break;
+        case OP_INDEX:
+            printf("index\n");
+            break;
+        case OP_ASSIGN:
+            printf("assign\n");
+            break;
+        case OP_SET:
+            printf("set\n");
+            break;
+
+        case OP_NEWARR:
+            printf("newarr %u\n", INS_E(ins));
+            break;
+        case OP_NEWMAP:
+            printf("newmap %u\n", INS_E(ins));
             break;
 
         case OP_ADD: printf("add\n"); break;

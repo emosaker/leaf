@@ -16,6 +16,13 @@ typedef enum lfOpCode {
     OP_DUP,
 
     OP_GETGLOBAL,
+    OP_SETGLOBAL,
+    OP_INDEX,
+    OP_ASSIGN,
+    OP_SET,
+
+    OP_NEWARR,
+    OP_NEWMAP,
 
     OP_ADD,
     OP_SUB,

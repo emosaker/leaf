@@ -111,6 +111,55 @@ bool visit_varaccess(lfCompilerCtx *ctx, lfVarAccessNode *node) {
     return true;
 }
 
+bool visit_array(lfCompilerCtx *ctx, lfArrayNode *node) {
+    for (size_t i = 0; i < length(&node->values); i++)
+        if (!visit(ctx, node->values[i]))
+            return false;
+    emit_insn_e(ctx, OP_NEWARR, length(&node->values));
+    ctx->top -= length(&node->values) - 1;
+    return true;
+}
+
+bool visit_map(lfCompilerCtx *ctx, lfMapNode *node) {
+    for (size_t i = 0; i < length(&node->values); i++) {
+        if (!visit(ctx, node->keys[i]))
+            return false;
+        if (!visit(ctx, node->values[i]))
+            return false;
+    }
+    emit_insn_e(ctx, OP_NEWMAP, length(&node->values));
+    ctx->top -= length(&node->values) * 2 - 1;
+    return true;
+}
+
+bool visit_subscribe(lfCompilerCtx *ctx, lfSubscriptionNode *node) {
+    if (!visit(ctx, node->object)) return false;
+    if (!visit(ctx, node->index)) return false;
+    emit_op(ctx, OP_INDEX);
+    ctx->top -= 1;
+    return true;
+}
+
+bool visit_assign(lfCompilerCtx *ctx, lfAssignNode *node) {
+    if (!visit(ctx, node->value)) return false;
+    uint32_t index;
+    if (variablemap_lookup(&ctx->scope, node->variable.value, &index)) {
+        emit_insn_e(ctx, OP_ASSIGN, index);
+    } else {
+        emit_insn_e(ctx, OP_SETGLOBAL, new_string(ctx, node->variable.value, strlen(node->variable.value)));
+    }
+    return true;
+}
+
+bool visit_objassign(lfCompilerCtx *ctx, lfObjectAssignNode *node) {
+    if (!visit(ctx, node->object)) return false;
+    if (!visit(ctx, node->key)) return false;
+    if (!visit(ctx, node->value)) return false;
+    emit_op(ctx, OP_SET);
+    ctx->top -= 2;
+    return true;
+}
+
 bool visit_compound(lfCompilerCtx *ctx, lfCompoundNode *node) {
     for (size_t i = 0; i < length(&node->statements); i++)
         if (!visit(ctx, node->statements[i]))
@@ -127,6 +176,11 @@ bool visit(lfCompilerCtx *ctx, lfNode *node) {
         case NT_COMPOUND: return visit_compound(ctx, (lfCompoundNode *)node);
         case NT_VARDECL: return visit_vardecl(ctx, (lfVarDeclNode *)node);
         case NT_VARACCESS: return visit_varaccess(ctx, (lfVarAccessNode *)node);
+        case NT_ARRAY: return visit_array(ctx, (lfArrayNode *)node);
+        case NT_MAP: return visit_map(ctx, (lfMapNode *)node);
+        case NT_SUBSCRIBE: return visit_subscribe(ctx, (lfSubscriptionNode *)node);
+        case NT_ASSIGN: return visit_assign(ctx, (lfAssignNode *)node);
+        case NT_OBJASSIGN: return visit_objassign(ctx, (lfObjectAssignNode *)node);
         default:
             printf("unhandled: %d\n", node->type);
             return false;
