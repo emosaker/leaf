@@ -9,6 +9,8 @@
 #include <stdlib.h>
 
 typedef enum lfOpCode {
+    OP_NOP,
+
     OP_PUSHSI,
     OP_PUSHLI,
     OP_PUSHS,
@@ -47,7 +49,10 @@ typedef enum lfOpCode {
     OP_OR,
 
     OP_NEG,
-    OP_NOT
+    OP_NOT,
+
+    OP_JMP,
+    OP_JMPIFNOT,
 } lfOpCode;
 
 typedef struct lfProto {

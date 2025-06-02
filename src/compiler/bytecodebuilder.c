@@ -19,6 +19,13 @@ void emit_insn_e(lfCompilerCtx *ctx, lfOpCode op, uint32_t e) {
     emit_u24(ctx, e);
 }
 
+void emit_insn_e_at(lfCompilerCtx *ctx, lfOpCode op, uint32_t e, size_t idx) {
+    size_t curr = length(&ctx->current);
+    length(&ctx->current) = idx;
+    emit_insn_e(ctx, op, e);
+    length(&ctx->current) = curr;
+}
+
 void emit_op(lfCompilerCtx *ctx, lfOpCode op) {
     emit_insn_e(ctx, op, 0);
 }

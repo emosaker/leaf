@@ -81,7 +81,6 @@ bool visit_unop(lfCompilerCtx *ctx, lfUnaryOpNode *node) {
             return false;
     }
 
-    ctx->top += 1;
     return true;
 }
 
@@ -108,6 +107,7 @@ bool visit_varaccess(lfCompilerCtx *ctx, lfVarAccessNode *node) {
     } else {
         emit_insn_e(ctx, OP_GETGLOBAL, new_string(ctx, node->var.value, strlen(node->var.value)));
     }
+    ctx->top += 1;
     return true;
 }
 
@@ -148,6 +148,7 @@ bool visit_assign(lfCompilerCtx *ctx, lfAssignNode *node) {
     } else {
         emit_insn_e(ctx, OP_SETGLOBAL, new_string(ctx, node->variable.value, strlen(node->variable.value)));
     }
+    ctx->top -= 1;
     return true;
 }
 
@@ -157,6 +158,23 @@ bool visit_objassign(lfCompilerCtx *ctx, lfObjectAssignNode *node) {
     if (!visit(ctx, node->value)) return false;
     emit_op(ctx, OP_SET);
     ctx->top -= 2;
+    return true;
+}
+
+bool visit_if(lfCompilerCtx *ctx, lfIfNode *node) {
+    if (!visit(ctx, node->condition)) return false;
+    size_t idx = length(&ctx->current);
+    emit_op(ctx, OP_NOP); /* replaced later */
+    if (!visit(ctx, node->body)) return false;
+    size_t curr = length(&ctx->current);
+    emit_insn_e_at(ctx, OP_JMPIFNOT, (curr - idx) / 4 - 1 + (node->else_body != NULL ? 1 : 0), idx);
+    if (node->else_body != NULL) {
+        idx = length(&ctx->current);
+        emit_op(ctx, OP_NOP); /* replaced later */
+        if (!visit(ctx, node->else_body)) return false;
+        curr = length(&ctx->current);
+        emit_insn_e_at(ctx, OP_JMP, (curr - idx) / 4 - 1, idx);
+    }
     return true;
 }
 
@@ -181,6 +199,7 @@ bool visit(lfCompilerCtx *ctx, lfNode *node) {
         case NT_SUBSCRIBE: return visit_subscribe(ctx, (lfSubscriptionNode *)node);
         case NT_ASSIGN: return visit_assign(ctx, (lfAssignNode *)node);
         case NT_OBJASSIGN: return visit_objassign(ctx, (lfObjectAssignNode *)node);
+        case NT_IF: return visit_if(ctx, (lfIfNode *)node);
         default:
             printf("unhandled: %d\n", node->type);
             return false;

@@ -18,7 +18,7 @@ const char *keywords[] = {
     /* functions and classes */
     "fn", "class", "struct",
     /* control flow */
-    "if", "while", "for", "continue", "break", "return",
+    "if", "else", "while", "for", "continue", "break", "return",
     /* imports */
     "include",
     NULL

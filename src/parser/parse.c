@@ -1067,6 +1067,7 @@ void lf_node_delete(lfNode *node) {
             if (ifnode->else_body) {
                 lf_node_delete(ifnode->else_body);
             }
+            free(node);
         } break;
         case NT_WHILE: {
             lfWhileNode *whilenode = (lfWhileNode *)node;

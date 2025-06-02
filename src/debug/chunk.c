@@ -71,6 +71,13 @@ void print_instruction(const lfChunk *chunk, uint32_t *code, size_t *i) {
         case OP_NEG: printf("neg\n"); break;
         case OP_NOT: printf("not\n"); break;
 
+        case OP_JMP:
+            printf("jmp +%u\n", INS_E(ins));
+            break;
+        case OP_JMPIFNOT:
+            printf("jmpifnot +%u\n", INS_E(ins));
+            break;
+
         default:
             printf("unhandled: %d\n", INS_OP(ins));
     }
