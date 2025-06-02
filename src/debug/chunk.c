@@ -19,6 +19,15 @@ void print_instruction(const lfChunk *chunk, uint32_t *code, size_t *i) {
         case OP_PUSHS:
             printf("pushstring \"%s\"\n", chunk->strings[INS_E(ins)]);
             break;
+        case OP_PUSHNULL:
+            printf("pushnull\n");
+            break;
+        case OP_DUP:
+            printf("dup %u\n", INS_E(ins));
+            break;
+        case OP_GETGLOBAL:
+            printf("getglob %s\n", chunk->strings[INS_E(ins)]);
+            break;
 
         case OP_ADD: printf("add\n"); break;
         case OP_SUB: printf("sub\n"); break;
@@ -41,6 +50,9 @@ void print_instruction(const lfChunk *chunk, uint32_t *code, size_t *i) {
 
         case OP_NEG: printf("neg\n"); break;
         case OP_NOT: printf("not\n"); break;
+
+        default:
+            printf("unhandled: %d\n", INS_OP(ins));
     }
     *i += 1;
 }

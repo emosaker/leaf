@@ -12,6 +12,10 @@ typedef enum lfOpCode {
     OP_PUSHSI,
     OP_PUSHLI,
     OP_PUSHS,
+    OP_PUSHNULL,
+    OP_DUP,
+
+    OP_GETGLOBAL,
 
     OP_ADD,
     OP_SUB,

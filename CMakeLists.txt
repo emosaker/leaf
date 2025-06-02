@@ -9,7 +9,8 @@ set(LEAF_COMPILER_SOURCES
     src/parser/tokenize.c
     src/parser/parse.c
     src/compiler/compile.c
-    src/compiler/util.c
+    src/compiler/bytecodebuilder.c
+    src/compiler/variablemap.c
     src/debug/chunk.c
 )
 
@@ -19,10 +20,10 @@ target_include_directories(leafc PRIVATE include "${CMAKE_SOURCE_DIR}/include")
 
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
     set(
-    CMAKE_C_FLAGS
-    "${CMAKE_C_FLAGS} -Werror -fsanitize=undefined -fsanitize=address"
-  )
+        CMAKE_C_FLAGS
+        "${CMAKE_C_FLAGS} -Werror -fsanitize=undefined -fsanitize=address"
+    )
     target_link_options(leafc
-    BEFORE PUBLIC -fsanitize=undefined PUBLIC -fsanitize=address
-  )
+        BEFORE PUBLIC -fsanitize=undefined PUBLIC -fsanitize=address
+    )
 endif()

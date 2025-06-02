@@ -7,12 +7,17 @@
 
 #include "lib/array.h"
 #include "compiler/bytecode.h"
+#include "compiler/variablemap.h"
 
 typedef struct lfCompilerCtx {
+    const char *file;
+    const char *source;
+    size_t top; /* stack top */
     lfArray(lfProto) protos;
     lfArray(char *) strings;
     lfArray(uint64_t) ints;
     lfArray(uint8_t) current;
+    lfVariableMap scope;
 } lfCompilerCtx;
 
 lfChunk *lf_compile(const char *source, const char *file);

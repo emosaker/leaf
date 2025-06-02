@@ -8,10 +8,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "compiler/variablemap.h"
 #include "lib/array.h"
 #include "compiler/bytecode.h"
 #include "compiler/compile.h"
-#include "compiler/util.h"
+#include "compiler/bytecodebuilder.h"
+#include "lib/error.h"
 #include "parser/node.h"
 #include "parser/parse.h"
 #include "parser/token.h"
@@ -38,6 +40,7 @@ bool visit_int(lfCompilerCtx *ctx, lfLiteralNode *node) {
     } else {
         emit_insn_e(ctx, OP_PUSHSI, value);
     }
+    ctx->top += 1;
     return true;
 }
 
@@ -65,6 +68,7 @@ bool visit_binop(lfCompilerCtx *ctx, lfBinaryOpNode *node) {
             return false;
     }
 
+    ctx->top -= 1;
     return true;
 }
 
@@ -77,6 +81,40 @@ bool visit_unop(lfCompilerCtx *ctx, lfUnaryOpNode *node) {
             return false;
     }
 
+    ctx->top += 1;
+    return true;
+}
+
+bool visit_vardecl(lfCompilerCtx *ctx, lfVarDeclNode *node) {
+    if (variablemap_lookup(&ctx->scope, node->name.value, NULL)) {
+        error_print(ctx->file, ctx->source, node->name.idx_start, node->name.idx_end, "variable name already in use");
+        return false;
+    }
+
+    if (node->initializer) {
+        if (!visit(ctx, node->initializer))
+            return false;
+    } else emit_op(ctx, OP_PUSHNULL);
+
+    variablemap_insert(&ctx->scope, node->name.value, ctx->top - 1);
+
+    return true;
+}
+
+bool visit_varaccess(lfCompilerCtx *ctx, lfVarAccessNode *node) {
+    uint32_t index;
+    if (variablemap_lookup(&ctx->scope, node->var.value, &index)) {
+        emit_insn_e(ctx, OP_DUP, index);
+    } else {
+        emit_insn_e(ctx, OP_GETGLOBAL, new_string(ctx, node->var.value, strlen(node->var.value)));
+    }
+    return true;
+}
+
+bool visit_compound(lfCompilerCtx *ctx, lfCompoundNode *node) {
+    for (size_t i = 0; i < length(&node->statements); i++)
+        if (!visit(ctx, node->statements[i]))
+            return false;
     return true;
 }
 
@@ -86,6 +124,9 @@ bool visit(lfCompilerCtx *ctx, lfNode *node) {
         case NT_STRING: return visit_string(ctx, (lfLiteralNode *)node);
         case NT_BINARYOP: return visit_binop(ctx, (lfBinaryOpNode *)node);
         case NT_UNARYOP: return visit_unop(ctx, (lfUnaryOpNode *)node);
+        case NT_COMPOUND: return visit_compound(ctx, (lfCompoundNode *)node);
+        case NT_VARDECL: return visit_vardecl(ctx, (lfVarDeclNode *)node);
+        case NT_VARACCESS: return visit_varaccess(ctx, (lfVarAccessNode *)node);
         default:
             printf("unhandled: %d\n", node->type);
             return false;
@@ -99,17 +140,22 @@ lfChunk *lf_compile(const char *source, const char *file) {
     }
 
     lfCompilerCtx ctx = (lfCompilerCtx) {
+        .file = file,
+        .source = source,
+        .top = 0,
         .protos = array_new(lfProto, proto_deleter),
         .strings = array_new(char *, string_deleter),
         .ints = array_new(uint64_t),
-        .current = array_new(uint8_t)
+        .current = array_new(uint8_t),
+        .scope = variablemap_create(256)
     };
 
-    if (!visit(&ctx, ((lfCompoundNode *)ast)->statements[0])) {
+    if (!visit(&ctx, ast)) {
         array_delete(&ctx.strings);
         array_delete(&ctx.protos);
         array_delete(&ctx.current);
         array_delete(&ctx.ints);
+        array_delete(&ctx.scope);
         lf_node_delete(ast);
         return NULL;
     }
@@ -141,6 +187,7 @@ lfChunk *lf_compile(const char *source, const char *file) {
     array_delete(&ctx.protos);
     array_delete(&ctx.current);
     array_delete(&ctx.ints);
+    array_delete(&ctx.scope);
     lf_node_delete(ast);
     return chunk;
 }
