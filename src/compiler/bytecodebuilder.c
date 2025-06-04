@@ -14,6 +14,13 @@ void emit_insn_abc(lfCompilerCtx *ctx, lfOpCode op, uint8_t a, uint8_t b, uint8_
     array_push(&ctx->current, c);
 }
 
+void emit_insn_ad(lfCompilerCtx *ctx, lfOpCode op, uint8_t a, uint16_t d) {
+    array_push(&ctx->current, op);
+    array_push(&ctx->current, a);
+    array_push(&ctx->current, (d >> 0) & 0xFF);
+    array_push(&ctx->current, (d >> 8) & 0xFF);
+}
+
 void emit_insn_e(lfCompilerCtx *ctx, lfOpCode op, uint32_t e) {
     array_push(&ctx->current, op);
     emit_u24(ctx, e);

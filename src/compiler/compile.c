@@ -26,6 +26,66 @@ void string_deleter(char **string) {
     free(*string);
 }
 
+bool getupvalue(lfCompilerCtx *ctx, char *key, uint32_t *out) {
+    /* find the upvalue stack and index */
+    size_t match = 0;
+    uint32_t match_idx = 0;
+    for (size_t i = length(&ctx->fnstack); i > 0; i--) {
+        lfStackFrame *frame = ctx->fnstack[i - 1];
+        if (variablemap_lookup(&frame->scope, key, &match_idx)) {
+            match = i - 1;
+            break;
+        }
+        if (i == 1) return false;
+    }
+    /* match is now the index of the stack frame, match_idx is the indef of the upvalue */
+    /* check if the upvalue is present already */
+    bool found = false;
+    size_t capture = 0;
+    for (size_t i = 0; i < length(&ctx->fnstack[match + 1]->upvalues); i++) {
+        lfUpValue upval = ctx->fnstack[match + 1]->upvalues[i];
+        if (upval.index == match_idx) {
+            found = true;
+            capture = i;
+            break;
+        }
+    }
+    /* if not found, capture it */
+    if (!found) {
+        lfUpValue upval = (lfUpValue) {
+            .by = UVT_IDX,
+            .index = match_idx
+        };
+        array_push(&ctx->fnstack[match + 1]->upvalues, upval);
+        capture = length(&ctx->fnstack[match + 1]->upvalues) - 1;
+    }
+    /* pass the upvalue down by ref until we reach the current stack frame */
+    for (size_t i = match + 2; i < length(&ctx->fnstack); i++) {
+        /* check if a ref is already present */
+        found = false;
+        for (size_t j = 0; j < length(&ctx->fnstack[i]->upvalues); j++) {
+            lfUpValue upval = ctx->fnstack[i]->upvalues[j];
+            if (upval.index == capture) {
+                found = true;
+                capture = j;
+                break;
+            }
+        }
+        if (!found) {
+            lfUpValue upval = (lfUpValue) {
+                .by = UVT_REF,
+                .index = capture
+            };
+            array_push(&ctx->fnstack[i]->upvalues, upval);
+            capture = length(&ctx->fnstack[i]->upvalues) - 1;
+        }
+    }
+
+    /* capture now holds the upvalue idx */
+    *out = capture;
+    return true;
+}
+
 bool visit(lfCompilerCtx *ctx, lfNode *node);
 
 bool nodiscard(lfCompilerCtx *ctx, lfNode *node) {
@@ -112,8 +172,11 @@ bool visit_vardecl(lfCompilerCtx *ctx, lfVarDeclNode *node) {
 bool visit_varaccess(lfCompilerCtx *ctx, lfVarAccessNode *node) {
     if (ctx->discarded) return true;
     uint32_t index;
+    uint32_t uvindex;
     if (variablemap_lookup(&ctx->scope, node->var.value, &index)) {
         emit_insn_e(ctx, OP_DUP, index);
+    } else if (getupvalue(ctx, node->var.value, &uvindex)) {
+        emit_insn_e(ctx, OP_GETUPVAL, uvindex);
     } else {
         emit_insn_e(ctx, OP_GETGLOBAL, new_string(ctx, node->var.value, strlen(node->var.value)));
     }
@@ -220,6 +283,64 @@ bool visit_return(lfCompilerCtx *ctx, lfReturnNode *node) {
     return true;
 }
 
+bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
+    lfArray(uint8_t) old_body = ctx->current;
+    size_t old_top = ctx->top;
+
+    ctx->current = array_new(uint8_t);
+    ctx->scope = variablemap_create(256);
+    ctx->top = length(&node->params); /* args passed on stack */
+
+    lfStackFrame frame = (lfStackFrame) {
+        .scope = ctx->scope,
+        .upvalues = array_new(lfUpValue)
+    };
+    array_push(&ctx->fnstack, &frame);
+
+    for (size_t i = 0; i < length(&node->params); i++) {
+        variablemap_insert(&ctx->scope, node->params[i]->name.value, i);
+    }
+
+    for (size_t i = 0; i < length(&node->body); i++)
+        if (!visit(ctx, node->body[i])) {
+            /* caller cleans up */
+            ctx->current = old_body;
+
+            return false;
+        }
+
+    lfProto func = (lfProto) {
+        .code = malloc(length(&ctx->current)),
+        .szcode = length(&ctx->current) / 4,
+        .name = new_string(ctx, node->name.value, strlen(node->name.value)) + 1
+    };
+    memcpy(func.code, ctx->current, length(&ctx->current));
+    array_push(&ctx->protos, func);
+
+    array_delete(&ctx->current);
+    array_delete(&ctx->fnstack[length(&ctx->fnstack) - 1]->scope);
+    length(&ctx->fnstack) -= 1;
+
+    ctx->scope = ctx->fnstack[length(&ctx->fnstack) - 1]->scope;
+    ctx->top = old_top;
+    ctx->current = old_body;
+
+    for (size_t i = 0; i < length(&frame.upvalues); i++) {
+        emit_insn_ad(ctx, OP_CAPTURE, frame.upvalues[i].by, frame.upvalues[i].index);
+    }
+    emit_insn_e(ctx, OP_CL, length(&ctx->protos) - 1);
+    array_delete(&frame.upvalues);
+
+    uint32_t i;
+    if (variablemap_lookup(&ctx->scope, node->name.value, &i)) {
+        emit_insn_e(ctx, OP_ASSIGN, i);
+    } else {
+        variablemap_insert(&ctx->scope, node->name.value, ctx->top);
+        ctx->top += 1;
+    }
+    return true;
+}
+
 bool visit_compound(lfCompilerCtx *ctx, lfCompoundNode *node) {
     lfVariableMap old = variablemap_clone(&ctx->scope);
     size_t old_top = ctx->top;
@@ -252,6 +373,7 @@ bool visit(lfCompilerCtx *ctx, lfNode *node) {
         case NT_WHILE: return visit_while(ctx, (lfWhileNode *)node);
         case NT_CALL: return visit_call(ctx, (lfCallNode *)node);
         case NT_RETURN: return visit_return(ctx, (lfReturnNode *)node);
+        case NT_FUNC: return visit_fn(ctx, (lfFunctionNode *)node);
         default:
             printf("unhandled: %d\n", node->type);
             return false;
@@ -273,8 +395,15 @@ lfChunk *lf_compile(const char *source, const char *file) {
         .strings = array_new(char *, string_deleter),
         .ints = array_new(uint64_t),
         .current = array_new(uint8_t),
-        .scope = variablemap_create(256)
+        .scope = variablemap_create(256),
+        .fnstack = array_new(lfStackFrame)
     };
+
+    lfStackFrame frame = (lfStackFrame) {
+        .scope = ctx.scope,
+        .upvalues = array_new(lfUpValue)
+    };
+    array_push(&ctx.fnstack, &frame);
 
     if (!visit(&ctx, ast)) {
         array_delete(&ctx.strings);
@@ -282,6 +411,7 @@ lfChunk *lf_compile(const char *source, const char *file) {
         array_delete(&ctx.current);
         array_delete(&ctx.ints);
         array_delete(&ctx.scope);
+        array_delete(&ctx.fnstack);
         lf_node_delete(ast);
         return NULL;
     }
@@ -314,6 +444,8 @@ lfChunk *lf_compile(const char *source, const char *file) {
     array_delete(&ctx.current);
     array_delete(&ctx.ints);
     array_delete(&ctx.scope);
+    array_delete(&frame.upvalues);
+    array_delete(&ctx.fnstack);
     lf_node_delete(ast);
     return chunk;
 }

@@ -19,6 +19,8 @@ typedef enum lfOpCode {
 
     OP_GETGLOBAL,
     OP_SETGLOBAL,
+    OP_GETUPVAL,
+    OP_SETUPVAL,
     OP_INDEX,
     OP_ASSIGN,
     OP_SET,
@@ -56,6 +58,9 @@ typedef enum lfOpCode {
     OP_JMPIFNOT,
 
     OP_CALL,
+
+    OP_CL,
+    OP_CAPTURE,
     OP_RET
 } lfOpCode;
 
@@ -79,6 +84,7 @@ typedef struct lfChunk {
 #define INS_A(INSTRUCTION)  (((INSTRUCTION) >> 8)  & 0xFF)
 #define INS_B(INSTRUCTION)  (((INSTRUCTION) >> 16) & 0xFF)
 #define INS_C(INSTRUCTION)  (((INSTRUCTION) >> 24) & 0xFF)
+#define INS_D(INSTRUCTION)  (((INSTRUCTION) & 0xFFFF0000) >> 16)
 #define INS_E(INSTRUCTION)  (((INSTRUCTION) & 0xFFFFFF00) >> 8)
 
 #endif /* LEAF_BYTECODE_H */
