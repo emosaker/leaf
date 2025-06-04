@@ -28,8 +28,17 @@ void string_deleter(char **string) {
 
 bool visit(lfCompilerCtx *ctx, lfNode *node);
 
+bool nodiscard(lfCompilerCtx *ctx, lfNode *node) {
+    bool old = ctx->discarded;
+    ctx->discarded = false;
+    bool result = visit(ctx, node);
+    ctx->discarded = old;
+    return result;
+}
+
 bool visit_string(lfCompilerCtx *ctx, lfLiteralNode *node) {
     emit_insn_e(ctx, OP_PUSHS, new_string(ctx, node->value.value, strlen(node->value.value)));
+    ctx->top += 1;
     return true;
 }
 
@@ -45,8 +54,8 @@ bool visit_int(lfCompilerCtx *ctx, lfLiteralNode *node) {
 }
 
 bool visit_binop(lfCompilerCtx *ctx, lfBinaryOpNode *node) {
-    if (!visit(ctx, node->lhs)) return false;
-    if (!visit(ctx, node->rhs)) return false;
+    if (!nodiscard(ctx, node->lhs)) return false;
+    if (!nodiscard(ctx, node->rhs)) return false;
     switch (node->op.type) {
         case TT_ADD: emit_op(ctx, OP_ADD); break;
         case TT_SUB: emit_op(ctx, OP_SUB); break;
@@ -73,7 +82,7 @@ bool visit_binop(lfCompilerCtx *ctx, lfBinaryOpNode *node) {
 }
 
 bool visit_unop(lfCompilerCtx *ctx, lfUnaryOpNode *node) {
-    if (!visit(ctx, node->value)) return false;
+    if (!nodiscard(ctx, node->value)) return false;
     switch (node->op.type) {
         case TT_SUB: emit_op(ctx, OP_NEG); break;
         case TT_NOT: emit_op(ctx, OP_NOT); break;
@@ -91,7 +100,7 @@ bool visit_vardecl(lfCompilerCtx *ctx, lfVarDeclNode *node) {
     }
 
     if (node->initializer) {
-        if (!visit(ctx, node->initializer))
+        if (!nodiscard(ctx, node->initializer))
             return false;
     } else emit_op(ctx, OP_PUSHNULL);
 
@@ -101,6 +110,7 @@ bool visit_vardecl(lfCompilerCtx *ctx, lfVarDeclNode *node) {
 }
 
 bool visit_varaccess(lfCompilerCtx *ctx, lfVarAccessNode *node) {
+    if (ctx->discarded) return true;
     uint32_t index;
     if (variablemap_lookup(&ctx->scope, node->var.value, &index)) {
         emit_insn_e(ctx, OP_DUP, index);
@@ -113,7 +123,7 @@ bool visit_varaccess(lfCompilerCtx *ctx, lfVarAccessNode *node) {
 
 bool visit_array(lfCompilerCtx *ctx, lfArrayNode *node) {
     for (size_t i = 0; i < length(&node->values); i++)
-        if (!visit(ctx, node->values[i]))
+        if (!nodiscard(ctx, node->values[i]))
             return false;
     emit_insn_e(ctx, OP_NEWARR, length(&node->values));
     ctx->top -= length(&node->values) - 1;
@@ -122,9 +132,9 @@ bool visit_array(lfCompilerCtx *ctx, lfArrayNode *node) {
 
 bool visit_map(lfCompilerCtx *ctx, lfMapNode *node) {
     for (size_t i = 0; i < length(&node->values); i++) {
-        if (!visit(ctx, node->keys[i]))
+        if (!nodiscard(ctx, node->keys[i]))
             return false;
-        if (!visit(ctx, node->values[i]))
+        if (!nodiscard(ctx, node->values[i]))
             return false;
     }
     emit_insn_e(ctx, OP_NEWMAP, length(&node->values));
@@ -133,15 +143,15 @@ bool visit_map(lfCompilerCtx *ctx, lfMapNode *node) {
 }
 
 bool visit_subscribe(lfCompilerCtx *ctx, lfSubscriptionNode *node) {
-    if (!visit(ctx, node->object)) return false;
-    if (!visit(ctx, node->index)) return false;
+    if (!nodiscard(ctx, node->object)) return false;
+    if (!nodiscard(ctx, node->index)) return false;
     emit_op(ctx, OP_INDEX);
     ctx->top -= 1;
     return true;
 }
 
 bool visit_assign(lfCompilerCtx *ctx, lfAssignNode *node) {
-    if (!visit(ctx, node->value)) return false;
+    if (!nodiscard(ctx, node->value)) return false;
     uint32_t index;
     if (variablemap_lookup(&ctx->scope, node->variable.value, &index)) {
         emit_insn_e(ctx, OP_ASSIGN, index);
@@ -153,16 +163,16 @@ bool visit_assign(lfCompilerCtx *ctx, lfAssignNode *node) {
 }
 
 bool visit_objassign(lfCompilerCtx *ctx, lfObjectAssignNode *node) {
-    if (!visit(ctx, node->object)) return false;
-    if (!visit(ctx, node->key)) return false;
-    if (!visit(ctx, node->value)) return false;
+    if (!nodiscard(ctx, node->object)) return false;
+    if (!nodiscard(ctx, node->key)) return false;
+    if (!nodiscard(ctx, node->value)) return false;
     emit_op(ctx, OP_SET);
-    ctx->top -= 2;
+    ctx->top -= 3;
     return true;
 }
 
 bool visit_if(lfCompilerCtx *ctx, lfIfNode *node) {
-    if (!visit(ctx, node->condition)) return false;
+    if (!nodiscard(ctx, node->condition)) return false;
     size_t idx = length(&ctx->current);
     emit_op(ctx, OP_NOP); /* replaced later */
     ctx->top -= 1; /* condition is popped */
@@ -181,13 +191,23 @@ bool visit_if(lfCompilerCtx *ctx, lfIfNode *node) {
 
 bool visit_while(lfCompilerCtx *ctx, lfWhileNode *node) {
     size_t start = length(&ctx->current);
-    if (!visit(ctx, node->condition)) return false;
+    if (!nodiscard(ctx, node->condition)) return false;
     size_t idx = length(&ctx->current);
     emit_op(ctx, OP_NOP); /* replaced later */
     ctx->top -= 1; /* condition is popped */
     if (!visit(ctx, node->body)) return false;
     emit_insn_e(ctx, OP_JMPBACK, length(&ctx->current) - start);
     emit_insn_e_at(ctx, OP_JMPIFNOT, length(&ctx->current) - idx - 4, idx);
+    return true;
+}
+
+bool visit_call(lfCompilerCtx *ctx, lfCallNode *node) {
+    if (!nodiscard(ctx, node->func)) return false;
+    for (size_t i = 0; i < length(&node->args); i++) {
+        if (!nodiscard(ctx, node->args[i])) return false;
+    }
+    emit_insn_abc(ctx, OP_CALL, length(&node->args), ctx->discarded ? 0 : 1, 0);
+    ctx->top -= length(&node->args) + (ctx->discarded ? 1 : 0);
     return true;
 }
 
@@ -221,6 +241,7 @@ bool visit(lfCompilerCtx *ctx, lfNode *node) {
         case NT_OBJASSIGN: return visit_objassign(ctx, (lfObjectAssignNode *)node);
         case NT_IF: return visit_if(ctx, (lfIfNode *)node);
         case NT_WHILE: return visit_while(ctx, (lfWhileNode *)node);
+        case NT_CALL: return visit_call(ctx, (lfCallNode *)node);
         default:
             printf("unhandled: %d\n", node->type);
             return false;
@@ -237,6 +258,7 @@ lfChunk *lf_compile(const char *source, const char *file) {
         .file = file,
         .source = source,
         .top = 0,
+        .discarded = true,
         .protos = array_new(lfProto, proto_deleter),
         .strings = array_new(char *, string_deleter),
         .ints = array_new(uint64_t),

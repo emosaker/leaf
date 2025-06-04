@@ -81,6 +81,10 @@ void print_instruction(const lfChunk *chunk, uint32_t *code, size_t *i) {
             printf("jmpifnot +%u\n", INS_E(ins));
             break;
 
+        case OP_CALL:
+            printf("call args=%d, ret=%d\n", INS_A(ins), INS_B(ins));
+            break;
+
         default:
             printf("unhandled: %d\n", INS_OP(ins));
     }

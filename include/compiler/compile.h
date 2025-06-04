@@ -13,6 +13,7 @@ typedef struct lfCompilerCtx {
     const char *file;
     const char *source;
     size_t top; /* stack top */
+    bool discarded; /* whether the value of the currently compiled expression will be discarded */
     lfArray(lfProto) protos;
     lfArray(char *) strings;
     lfArray(uint64_t) ints;
