@@ -165,23 +165,43 @@ bool visit_if(lfCompilerCtx *ctx, lfIfNode *node) {
     if (!visit(ctx, node->condition)) return false;
     size_t idx = length(&ctx->current);
     emit_op(ctx, OP_NOP); /* replaced later */
+    ctx->top -= 1; /* condition is popped */
     if (!visit(ctx, node->body)) return false;
     size_t curr = length(&ctx->current);
-    emit_insn_e_at(ctx, OP_JMPIFNOT, (curr - idx) / 4 - 1 + (node->else_body != NULL ? 1 : 0), idx);
+    emit_insn_e_at(ctx, OP_JMPIFNOT, (curr - idx) - 4 + (node->else_body != NULL ? 4 : 0), idx);
     if (node->else_body != NULL) {
         idx = length(&ctx->current);
         emit_op(ctx, OP_NOP); /* replaced later */
         if (!visit(ctx, node->else_body)) return false;
         curr = length(&ctx->current);
-        emit_insn_e_at(ctx, OP_JMP, (curr - idx) / 4 - 1, idx);
+        emit_insn_e_at(ctx, OP_JMP, (curr - idx) - 4, idx);
     }
     return true;
 }
 
+bool visit_while(lfCompilerCtx *ctx, lfWhileNode *node) {
+    size_t start = length(&ctx->current);
+    if (!visit(ctx, node->condition)) return false;
+    size_t idx = length(&ctx->current);
+    emit_op(ctx, OP_NOP); /* replaced later */
+    ctx->top -= 1; /* condition is popped */
+    if (!visit(ctx, node->body)) return false;
+    emit_insn_e(ctx, OP_JMPBACK, length(&ctx->current) - start);
+    emit_insn_e_at(ctx, OP_JMPIFNOT, length(&ctx->current) - idx - 4, idx);
+    return true;
+}
+
 bool visit_compound(lfCompilerCtx *ctx, lfCompoundNode *node) {
+    lfVariableMap old = variablemap_clone(&ctx->scope);
+    size_t old_top = ctx->top;
     for (size_t i = 0; i < length(&node->statements); i++)
-        if (!visit(ctx, node->statements[i]))
+        if (!visit(ctx, node->statements[i])) {
+            array_delete(&old);
             return false;
+        }
+    array_delete(&ctx->scope);
+    ctx->scope = old;
+    ctx->top = old_top;
     return true;
 }
 
@@ -200,6 +220,7 @@ bool visit(lfCompilerCtx *ctx, lfNode *node) {
         case NT_ASSIGN: return visit_assign(ctx, (lfAssignNode *)node);
         case NT_OBJASSIGN: return visit_objassign(ctx, (lfObjectAssignNode *)node);
         case NT_IF: return visit_if(ctx, (lfIfNode *)node);
+        case NT_WHILE: return visit_while(ctx, (lfWhileNode *)node);
         default:
             printf("unhandled: %d\n", node->type);
             return false;

@@ -74,6 +74,9 @@ void print_instruction(const lfChunk *chunk, uint32_t *code, size_t *i) {
         case OP_JMP:
             printf("jmp +%u\n", INS_E(ins));
             break;
+        case OP_JMPBACK:
+            printf("jmp -%u\n", INS_E(ins));
+            break;
         case OP_JMPIFNOT:
             printf("jmpifnot +%u\n", INS_E(ins));
             break;

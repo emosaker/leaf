@@ -872,6 +872,38 @@ lfNode *parse_fn(lfParseCtx *ctx) {
     return (lfNode *)f;
 }
 
+lfNode *parse_compound(lfParseCtx *ctx) {
+    if (ctx->current.type != TT_LBRACE) {
+        error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '{'");
+        ctx->errored = true;
+        ctx->described = true;
+        return NULL;
+    }
+    lfToken lbrace = ctx->current;
+    advance(ctx);
+    lfCompoundNode *compound = alloc(lfCompoundNode);
+    compound->type = NT_COMPOUND;
+    compound->statements = array_new(lfNode *, lf_node_deleter);
+    while (ctx->current.type != TT_RBRACE) {
+        lfNode *statement = parse_statement(ctx);
+        if (ctx->errored) {
+            lf_node_delete((lfNode *)compound);
+            return NULL;
+        }
+        array_push(&compound->statements, statement);
+    }
+    if (ctx->current.type != TT_RBRACE) {
+        error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '}'");
+        error_print(ctx->file, ctx->source, lbrace.idx_start, lbrace.idx_end, "... to close");
+        ctx->errored = true;
+        ctx->described = true;
+        return NULL;
+    }
+    advance(ctx);
+
+    return (lfNode *)compound;
+}
+
 lfNode *parse_statement(lfParseCtx *ctx) {
     if (ctx->current.type == TT_KEYWORD) {
         if (!strcmp(ctx->current.value, "var") || !strcmp(ctx->current.value, "const")) {
@@ -882,7 +914,7 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             if (ctx->errored) {
                 return NULL;
             }
-            lfNode *body = parse_statement(ctx);
+            lfNode *body = parse_compound(ctx);
             if (ctx->errored) {
                 lf_node_delete(condition);
                 return NULL;
@@ -890,7 +922,7 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             lfNode *else_body = NULL;
             if (ctx->current.type == TT_KEYWORD && !strcmp(ctx->current.value, "else")) {
                 advance(ctx);
-                else_body = parse_statement(ctx);
+                else_body = parse_compound(ctx);
                 if (ctx->errored) {
                     lf_node_delete(condition);
                     lf_node_delete(body);
@@ -909,7 +941,7 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             if (ctx->errored) {
                 return NULL;
             }
-            lfNode *body = parse_statement(ctx);
+            lfNode *body = parse_compound(ctx);
             if (ctx->errored) {
                 lf_node_delete(condition);
                 return NULL;
@@ -1008,6 +1040,8 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             import->path = path;
             return (lfNode *)import;
         }
+    } else if (ctx->current.type == TT_LBRACKET) {
+        return parse_compound(ctx);
     }
 
     lfNode *expr = parse_comparative(ctx); /* avoid the expr error printer */
@@ -1073,6 +1107,7 @@ void lf_node_delete(lfNode *node) {
             lfWhileNode *whilenode = (lfWhileNode *)node;
             lf_node_delete(whilenode->condition);
             lf_node_delete(whilenode->body);
+            free(node);
         } break;
         case NT_UNARYOP: {
             lfUnaryOpNode *unop = (lfUnaryOpNode *)node;
