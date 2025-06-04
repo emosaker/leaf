@@ -211,6 +211,15 @@ bool visit_call(lfCompilerCtx *ctx, lfCallNode *node) {
     return true;
 }
 
+bool visit_return(lfCompilerCtx *ctx, lfReturnNode *node) {
+    if (node->value) {
+        if (!nodiscard(ctx, node->value)) return false;
+        ctx->top -= 1;
+    }
+    emit_insn_abc(ctx, OP_RET, node->value != 0 ? 1 : 0, 0, 0);
+    return true;
+}
+
 bool visit_compound(lfCompilerCtx *ctx, lfCompoundNode *node) {
     lfVariableMap old = variablemap_clone(&ctx->scope);
     size_t old_top = ctx->top;
@@ -242,6 +251,7 @@ bool visit(lfCompilerCtx *ctx, lfNode *node) {
         case NT_IF: return visit_if(ctx, (lfIfNode *)node);
         case NT_WHILE: return visit_while(ctx, (lfWhileNode *)node);
         case NT_CALL: return visit_call(ctx, (lfCallNode *)node);
+        case NT_RETURN: return visit_return(ctx, (lfReturnNode *)node);
         default:
             printf("unhandled: %d\n", node->type);
             return false;

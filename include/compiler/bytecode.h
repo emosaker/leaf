@@ -55,7 +55,8 @@ typedef enum lfOpCode {
     OP_JMPBACK,
     OP_JMPIFNOT,
 
-    OP_CALL
+    OP_CALL,
+    OP_RET
 } lfOpCode;
 
 typedef struct lfProto {
