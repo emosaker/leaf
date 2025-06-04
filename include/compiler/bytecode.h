@@ -82,6 +82,8 @@ typedef struct lfChunk {
     size_t main;
 } lfChunk;
 
+void lf_chunk_delete(lfChunk *chunk);
+
 #define INS_OP(INSTRUCTION) (((INSTRUCTION) >> 0)  & 0xFF)
 #define INS_A(INSTRUCTION)  (((INSTRUCTION) >> 8)  & 0xFF)
 #define INS_B(INSTRUCTION)  (((INSTRUCTION) >> 16) & 0xFF)

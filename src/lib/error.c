@@ -49,7 +49,7 @@ void error_underline_code(const char *source, size_t idx_start, size_t idx_end) 
     }
 }
 
-void error_print(const char *file, const char *source, size_t idx_start, size_t idx_end, const char *message) {
+void lf_error_print(const char *file, const char *source, size_t idx_start, size_t idx_end, const char *message) {
     size_t line_start = idx_start;
     while (line_start > 0 && source[line_start] && source[line_start] != '\n') {
         line_start -= 1;

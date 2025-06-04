@@ -112,7 +112,7 @@ void print_instruction(const lfChunk *chunk, uint32_t *code, size_t *i) {
     *i += 1;
 }
 
-void chunk_print(const lfChunk *chunk) {
+void lf_chunk_print(const lfChunk *chunk) {
     for (int i = 0; i < chunk->szprotos; i++) {
         lfProto proto = chunk->protos[i];
         if (proto.name != 0) {

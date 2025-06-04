@@ -10,8 +10,6 @@
 #include "debug/chunk.h"
 #include "lib/ansi.h"
 
-#include "compiler/variablemap.h"
-
 #define FATAL FG_RED BOLD "fatal: " RESET
 
 int main(int argc, const char **argv) {
@@ -47,7 +45,7 @@ int main(int argc, const char **argv) {
         return 1;
     }
 
-    chunk_print(chunk);
+    lf_chunk_print(chunk);
 
     lf_chunk_delete(chunk);
     free(buffer);

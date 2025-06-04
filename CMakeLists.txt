@@ -8,6 +8,7 @@ set(LEAF_COMPILER_SOURCES
     src/lib/error.c
     src/parser/tokenize.c
     src/parser/parse.c
+    src/parser/node.c
     src/compiler/compile.c
     src/compiler/bytecodebuilder.c
     src/compiler/variablemap.c

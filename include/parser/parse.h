@@ -8,6 +8,5 @@
 #include "parser/node.h"
 
 lfNode *lf_parse(const char *source, const char *file) ;
-void lf_node_delete(lfNode *node);
 
 #endif /* LEAF_PARSER_H */

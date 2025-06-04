@@ -7,7 +7,7 @@
 #include "compiler/variablemap.h"
 #include "lib/array.h"
 
-void variablebucket_deleter(lfVariableBucket **bucket) {
+void lf_variablebucket_deleter(lfVariableBucket **bucket) {
     lfVariableBucket *current = *bucket;
     if (current) {
         while (current->next != NULL) current = current->next;
@@ -20,7 +20,7 @@ void variablebucket_deleter(lfVariableBucket **bucket) {
     }
 }
 
-size_t variablemap_compute_hash(const char *s) {
+size_t lf_variablemap_compute_hash(const char *s) {
     int p = 59;
     int m = 1e9 + 9;
     size_t hash_value = 0;
@@ -37,17 +37,17 @@ size_t variablemap_compute_hash(const char *s) {
     return hash_value;
 }
 
-lfVariableMap variablemap_create(size_t size) {
-    lfVariableMap map = array_new(lfVariableBucket *, variablebucket_deleter);
+lfVariableMap lf_variablemap_create(size_t size) {
+    lfVariableMap map = array_new(lfVariableBucket *, lf_variablebucket_deleter);
     array_reserve(&map, size);
     for (size_t i = 0; i < size; i++)
         array_push(&map, NULL);
     return map;
 }
 
-lfVariableMap variablemap_clone(const lfVariableMap *map) {
+lfVariableMap lf_variablemap_clone(const lfVariableMap *map) {
     size_t map_size = length(map);
-    lfVariableMap new_map = variablemap_create(map_size);
+    lfVariableMap new_map = lf_variablemap_create(map_size);
 
     for (size_t i = 0; i < map_size; ++i) {
         lfVariableBucket *current = (*map)[i];
@@ -74,8 +74,8 @@ lfVariableMap variablemap_clone(const lfVariableMap *map) {
     return new_map;
 }
 
-bool variablemap_lookup(const lfVariableMap *map, const char *key, uint32_t *out) {
-    size_t hash = variablemap_compute_hash(key) % length(map);
+bool lf_variablemap_lookup(const lfVariableMap *map, const char *key, uint32_t *out) {
+    size_t hash = lf_variablemap_compute_hash(key) % length(map);
     lfVariableBucket *b = (*map)[hash];
     if (b == NULL) return false;
     if (b->next == NULL) {
@@ -92,8 +92,8 @@ bool variablemap_lookup(const lfVariableMap *map, const char *key, uint32_t *out
     return false;
 }
 
-void variablemap_insert(lfVariableMap *map, const char *key, uint32_t value) {
-    size_t hash = variablemap_compute_hash(key) % length(map);
+void lf_variablemap_insert(lfVariableMap *map, const char *key, uint32_t value) {
+    size_t hash = lf_variablemap_compute_hash(key) % length(map);
     lfVariableBucket *next = malloc(sizeof(lfVariableBucket));
     next->key = key;
     next->value = value;

@@ -7,6 +7,6 @@
 
 #include "compiler/bytecode.h"
 
-void chunk_print(const lfChunk *chunk);
+void lf_chunk_print(const lfChunk *chunk);
 
 #endif /* LEAF_CHUNK_H */

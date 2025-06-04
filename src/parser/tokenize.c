@@ -24,7 +24,7 @@ const char *keywords[] = {
     NULL
 };
 
-void token_deleter(lfToken *tok) {
+void lf_token_deleter(lfToken *tok) {
     if (tok->value != NULL) {
         if (tok->type == TT_STRING) {
             array_delete(&tok->value);
@@ -79,7 +79,7 @@ static inline void token_singledoubledouble(const char *source, size_t *index, l
 }
 
 lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
-    lfArray(lfToken) tokens = array_new(lfToken, token_deleter);
+    lfArray(lfToken) tokens = array_new(lfToken, lf_token_deleter);
 
     size_t i = 0;
     while (source[i]) {
@@ -120,7 +120,7 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                         i += 1;
                     }
                     if (!closed) {
-                        error_print(file, source, start, start + 2, "unclosed '/*'");
+                        lf_error_print(file, source, start, start + 2, "unclosed '/*'");
                         array_delete(&tokens);
                         return NULL;
                     }
@@ -199,7 +199,7 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                         i += 1;
                     }
                     if (dots > 1) {
-                        error_print(file, source, start, i, "malformed number");
+                        lf_error_print(file, source, start, i, "malformed number");
                         array_delete(&tokens);
                         return NULL;
                     }
@@ -282,7 +282,7 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                                     break;
                                 case 'x':
                                     if (!source[i + 2] || !source[i + 3]) {
-                                        error_print(file, source, i, i + 1, "incomplete hexadecimal escape");
+                                        lf_error_print(file, source, i, i + 1, "incomplete hexadecimal escape");
                                         array_delete(&buffer);
                                         array_delete(&tokens);
                                         return NULL;
@@ -293,7 +293,7 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                                     i += 2;
                                     break;
                                 default:
-                                    error_print(file, source, i, i + 1, "unknown escape sequence");
+                                    lf_error_print(file, source, i, i + 1, "unknown escape sequence");
                                     array_delete(&buffer);
                                     array_delete(&tokens);
                                     return NULL;
@@ -305,7 +305,7 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                         }
                     }
                     if (source[i] != opener) {
-                        error_print(file, source, start, i, "unterminated string literal");
+                        lf_error_print(file, source, start, i, "unterminated string literal");
                         array_delete(&buffer);
                         array_delete(&tokens);
                         return NULL;

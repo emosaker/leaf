@@ -144,7 +144,7 @@ typedef struct lfMapNode {
 
 typedef struct lfAssignNode {
     lfNodeType type;
-    lfToken variable;
+    lfToken var;
     lfNode *value;
 } lfAssignNode;
 
@@ -210,5 +210,8 @@ typedef struct lfImportNode {
     lfNodeType type;
     lfArray(lfToken) path;
 } lfImportNode;
+
+void lf_node_deleter(lfNode **node);
+void lf_type_deleter(lfType **t);
 
 #endif /* LEAF_NODE_H */

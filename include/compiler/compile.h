@@ -37,6 +37,5 @@ typedef struct lfCompilerCtx {
 } lfCompilerCtx;
 
 lfChunk *lf_compile(const char *source, const char *file);
-void lf_chunk_delete(lfChunk *chunk);
 
 #endif /* LEAF_COMPILE_H */

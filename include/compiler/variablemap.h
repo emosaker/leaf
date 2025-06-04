@@ -20,9 +20,9 @@ typedef struct lfVariableBucket {
 
 typedef lfArray(lfVariableBucket *) lfVariableMap;
 
-lfVariableMap variablemap_create(size_t size);
-lfVariableMap variablemap_clone(const lfVariableMap *map);
-bool variablemap_lookup(const lfVariableMap *map, const char *key, uint32_t *out);
-void variablemap_insert(lfVariableMap *map, const char *key, uint32_t value); /* TODO: possibly resize the map when beneficial */
+lfVariableMap lf_variablemap_create(size_t size);
+lfVariableMap lf_variablemap_clone(const lfVariableMap *map);
+bool lf_variablemap_lookup(const lfVariableMap *map, const char *key, uint32_t *out);
+void lf_variablemap_insert(lfVariableMap *map, const char *key, uint32_t value); /* TODO: possibly resize the map when beneficial */
 
 #endif /* LEAF_VARIABLEMAP_H */
