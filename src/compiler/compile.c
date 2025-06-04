@@ -97,12 +97,14 @@ bool nodiscard(lfCompilerCtx *ctx, lfNode *node) {
 }
 
 bool visit_string(lfCompilerCtx *ctx, lfLiteralNode *node) {
+    if (ctx->discarded) return true;
     emit_insn_e(ctx, OP_PUSHS, new_string(ctx, node->value.value, strlen(node->value.value)));
     ctx->top += 1;
     return true;
 }
 
 bool visit_int(lfCompilerCtx *ctx, lfLiteralNode *node) {
+    if (ctx->discarded) return true;
     uint64_t value = strtoll(node->value.value, NULL, 10);
     if (value >= 0xFFFFFF) { /* 2^24 */
         emit_insn_e(ctx, OP_PUSHLI, new_u64(ctx, value));
