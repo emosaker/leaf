@@ -61,7 +61,9 @@ typedef enum lfOpCode {
 
     OP_CL,
     OP_CAPTURE,
-    OP_RET
+    OP_RET,
+
+    OP_CLS
 } lfOpCode;
 
 typedef struct lfProto {

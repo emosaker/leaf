@@ -216,8 +216,11 @@ bool visit_subscribe(lfCompilerCtx *ctx, lfSubscriptionNode *node) {
 bool visit_assign(lfCompilerCtx *ctx, lfAssignNode *node) {
     if (!nodiscard(ctx, node->value)) return false;
     uint32_t index;
+    uint32_t uvindex;
     if (variablemap_lookup(&ctx->scope, node->variable.value, &index)) {
         emit_insn_e(ctx, OP_ASSIGN, index);
+    } else if (getupvalue(ctx, node->variable.value, &uvindex)) {
+        emit_insn_e(ctx, OP_SETUPVAL, uvindex);
     } else {
         emit_insn_e(ctx, OP_SETGLOBAL, new_string(ctx, node->variable.value, strlen(node->variable.value)));
     }
@@ -341,6 +344,44 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
     return true;
 }
 
+bool visit_class(lfCompilerCtx *ctx, lfClassNode *node) {
+    bool wasclass = ctx->isclass;
+    ctx->isclass = true;
+    for (size_t i = 0; i < length(&node->body); i++) {
+        switch (node->body[i]->type) {
+            case NT_VARDECL:
+                emit_insn_e(
+                    ctx,
+                    OP_PUSHS,
+                    new_string(
+                        ctx,
+                        ((lfVarDeclNode *)node->body[i])->name.value,
+                        strlen(((lfVarDeclNode *)node->body[i])->name.value)
+                    )
+                );
+                break;
+            case NT_FUNC:
+                emit_insn_e(
+                    ctx,
+                    OP_PUSHS,
+                    new_string(
+                        ctx,
+                        ((lfFunctionNode *)node->body[i])->name.value,
+                        strlen(((lfFunctionNode *)node->body[i])->name.value)
+                    )
+                );
+                break;
+            default: /* unreachable for any AST produced by the parser */
+                return false;
+        }
+        visit(ctx, node->body[i]);
+    }
+
+    emit_insn_e(ctx, OP_PUSHS, new_string(ctx, node->name.value, strlen(node->name.value)));
+    emit_insn_e(ctx, OP_CLS, length(&node->body));
+    return true;
+}
+
 bool visit_compound(lfCompilerCtx *ctx, lfCompoundNode *node) {
     lfVariableMap old = variablemap_clone(&ctx->scope);
     size_t old_top = ctx->top;
@@ -374,6 +415,7 @@ bool visit(lfCompilerCtx *ctx, lfNode *node) {
         case NT_CALL: return visit_call(ctx, (lfCallNode *)node);
         case NT_RETURN: return visit_return(ctx, (lfReturnNode *)node);
         case NT_FUNC: return visit_fn(ctx, (lfFunctionNode *)node);
+        case NT_CLASS: return visit_class(ctx, (lfClassNode *)node);
         default:
             printf("unhandled: %d\n", node->type);
             return false;
@@ -411,6 +453,7 @@ lfChunk *lf_compile(const char *source, const char *file) {
         array_delete(&ctx.current);
         array_delete(&ctx.ints);
         array_delete(&ctx.scope);
+        array_delete(&frame.upvalues);
         array_delete(&ctx.fnstack);
         lf_node_delete(ast);
         return NULL;

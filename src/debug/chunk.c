@@ -24,20 +24,20 @@ void print_instruction(const lfChunk *chunk, uint32_t *code, size_t *i) {
             printf("pushnull\n");
             break;
         case OP_DUP:
-            printf("dup %u\n", INS_E(ins));
+            printf("dup offset=%u\n", INS_E(ins));
             break;
 
         case OP_GETGLOBAL:
-            printf("getglob %s\n", chunk->strings[INS_E(ins)]);
+            printf("getglob name=%s\n", chunk->strings[INS_E(ins)]);
             break;
         case OP_SETGLOBAL:
-            printf("setglob %s\n", chunk->strings[INS_E(ins)]);
+            printf("setglob name=%s\n", chunk->strings[INS_E(ins)]);
             break;
         case OP_GETUPVAL:
-            printf("getupval %d\n", INS_E(ins));
+            printf("getupval offset=%d\n", INS_E(ins));
             break;
         case OP_SETUPVAL:
-            printf("setupcal %s\n", chunk->strings[INS_E(ins)]);
+            printf("setupval offset=%d\n", INS_E(ins));
             break;
         case OP_INDEX:
             printf("index\n");
@@ -50,10 +50,10 @@ void print_instruction(const lfChunk *chunk, uint32_t *code, size_t *i) {
             break;
 
         case OP_NEWARR:
-            printf("newarr %u\n", INS_E(ins));
+            printf("newarr nvalues=%u\n", INS_E(ins));
             break;
         case OP_NEWMAP:
-            printf("newmap %u\n", INS_E(ins));
+            printf("newmap nmembers=%u\n", INS_E(ins));
             break;
 
         case OP_ADD: printf("add\n"); break;
@@ -93,13 +93,17 @@ void print_instruction(const lfChunk *chunk, uint32_t *code, size_t *i) {
             break;
 
         case OP_CL:
-            printf("closure %s\n", chunk->protos[INS_E(ins)].name != 0 ? chunk->strings[chunk->protos[INS_E(ins)].name - 1] : "<anonymous>");
+            printf("closure proto=%s\n", chunk->protos[INS_E(ins)].name != 0 ? chunk->strings[chunk->protos[INS_E(ins)].name - 1] : "<anonymous>");
             break;
         case OP_CAPTURE:
-            printf("capture %d (%s)\n", INS_D(ins), INS_A(ins) == UVT_REF ? "ref" : "idx");
+            printf("capture offset=%d by=%s\n", INS_D(ins), INS_A(ins) == UVT_REF ? "ref" : "idx");
             break;
         case OP_RET:
             printf("return values=%d\n", INS_A(ins));
+            break;
+
+        case OP_CLS:
+            printf("class members=%d\n", INS_E(ins));
             break;
 
         default:
