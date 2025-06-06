@@ -29,10 +29,10 @@ void string_deleter(char **string) {
 bool getupvalue(lfCompilerCtx *ctx, char *key, uint32_t *out) {
     /* find the upvalue stack and index */
     size_t match = 0;
-    uint32_t match_idx = 0;
+    lfVariable match_var;
     for (size_t i = length(&ctx->fnstack); i > 0; i--) {
         lfStackFrame *frame = ctx->fnstack[i - 1];
-        if (lf_variablemap_lookup(&frame->scope, key, &match_idx)) {
+        if (lf_variablemap_lookup(&frame->scope, key, &match_var)) {
             match = i - 1;
             break;
         }
@@ -44,7 +44,7 @@ bool getupvalue(lfCompilerCtx *ctx, char *key, uint32_t *out) {
     size_t capture = 0;
     for (size_t i = 0; i < length(&ctx->fnstack[match + 1]->upvalues); i++) {
         lfUpValue upval = ctx->fnstack[match + 1]->upvalues[i];
-        if (upval.index == match_idx) {
+        if (upval.index == match_var.stack_offset) {
             found = true;
             capture = i;
             break;
@@ -54,7 +54,7 @@ bool getupvalue(lfCompilerCtx *ctx, char *key, uint32_t *out) {
     if (!found) {
         lfUpValue upval = (lfUpValue) {
             .by = UVT_IDX,
-            .index = match_idx
+            .index = match_var.stack_offset
         };
         array_push(&ctx->fnstack[match + 1]->upvalues, upval);
         capture = length(&ctx->fnstack[match + 1]->upvalues) - 1;
@@ -157,7 +157,7 @@ bool visit_unop(lfCompilerCtx *ctx, lfUnaryOpNode *node) {
 
 bool visit_vardecl(lfCompilerCtx *ctx, lfVarDeclNode *node) {
     if (lf_variablemap_lookup(&ctx->scope, node->name.value, NULL)) {
-        lf_error_print(ctx->file, ctx->source, node->name.idx_start, node->name.idx_end, "variable name already in use");
+        lf_error_print(ctx->file, ctx->source, node->name.idx_start, node->name.idx_end, "variable redefinition");
         return false;
     }
 
@@ -166,17 +166,21 @@ bool visit_vardecl(lfCompilerCtx *ctx, lfVarDeclNode *node) {
             return false;
     } else emit_op(ctx, OP_PUSHNULL);
 
-    lf_variablemap_insert(&ctx->scope, node->name.value, ctx->top - 1);
+    lf_variablemap_insert(&ctx->scope, node->name.value, (lfVariable) {
+        .stack_offset = ctx->top - 1,
+        .is_const = node->is_const,
+        .is_ref = node->is_ref
+    });
 
     return true;
 }
 
 bool visit_varaccess(lfCompilerCtx *ctx, lfVarAccessNode *node) {
     if (ctx->discarded) return true;
-    uint32_t index;
+    lfVariable var;
     uint32_t uvindex;
-    if (lf_variablemap_lookup(&ctx->scope, node->var.value, &index)) {
-        emit_insn_e(ctx, OP_DUP, index);
+    if (lf_variablemap_lookup(&ctx->scope, node->var.value, &var)) {
+        emit_insn_e(ctx, OP_DUP, var.stack_offset);
     } else if (getupvalue(ctx, node->var.value, &uvindex)) {
         emit_insn_e(ctx, OP_GETUPVAL, uvindex);
     } else {
@@ -217,10 +221,14 @@ bool visit_subscribe(lfCompilerCtx *ctx, lfSubscriptionNode *node) {
 
 bool visit_assign(lfCompilerCtx *ctx, lfAssignNode *node) {
     if (!nodiscard(ctx, node->value)) return false;
-    uint32_t index;
+    lfVariable index;
     uint32_t uvindex;
     if (lf_variablemap_lookup(&ctx->scope, node->var.value, &index)) {
-        emit_insn_e(ctx, OP_ASSIGN, index);
+        if (index.is_const) {
+            lf_error_print(ctx->file, ctx->source, node->var.idx_start, node->var.idx_end, "cannot assign to const");
+            return false;
+        }
+        emit_insn_e(ctx, OP_ASSIGN, index.stack_offset);
     } else if (getupvalue(ctx, node->var.value, &uvindex)) {
         emit_insn_e(ctx, OP_SETUPVAL, uvindex);
     } else {
@@ -303,7 +311,11 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
     array_push(&ctx->fnstack, &frame);
 
     for (size_t i = 0; i < length(&node->params); i++) {
-        lf_variablemap_insert(&ctx->scope, node->params[i]->name.value, i);
+        lf_variablemap_insert(&ctx->scope, node->params[i]->name.value, (lfVariable) {
+            .stack_offset = i,
+            .is_const = node->params[i]->is_const,
+            .is_ref = node->params[i]->is_ref,
+        });
     }
 
     for (size_t i = 0; i < length(&node->body); i++)
@@ -340,11 +352,15 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
     emit_insn_e(ctx, OP_CL, length(&ctx->protos) - 1);
     array_delete(&frame.upvalues);
 
-    uint32_t i;
+    lfVariable i;
     if (lf_variablemap_lookup(&ctx->scope, node->name.value, &i)) {
-        emit_insn_e(ctx, OP_ASSIGN, i);
+        emit_insn_e(ctx, OP_ASSIGN, i.stack_offset);
     } else {
-        lf_variablemap_insert(&ctx->scope, node->name.value, ctx->top);
+        lf_variablemap_insert(&ctx->scope, node->name.value, (lfVariable) {
+            .stack_offset = ctx->top,
+            .is_const = false,
+            .is_ref = false
+        });
         ctx->top += 1;
     }
     return true;

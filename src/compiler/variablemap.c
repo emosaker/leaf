@@ -74,7 +74,7 @@ lfVariableMap lf_variablemap_clone(const lfVariableMap *map) {
     return new_map;
 }
 
-bool lf_variablemap_lookup(const lfVariableMap *map, const char *key, uint32_t *out) {
+bool lf_variablemap_lookup(const lfVariableMap *map, const char *key, lfVariable *out) {
     size_t hash = lf_variablemap_compute_hash(key) % length(map);
     lfVariableBucket *b = (*map)[hash];
     if (b == NULL) return false;
@@ -92,7 +92,7 @@ bool lf_variablemap_lookup(const lfVariableMap *map, const char *key, uint32_t *
     return false;
 }
 
-void lf_variablemap_insert(lfVariableMap *map, const char *key, uint32_t value) {
+void lf_variablemap_insert(lfVariableMap *map, const char *key, lfVariable value) {
     size_t hash = lf_variablemap_compute_hash(key) % length(map);
     lfVariableBucket *next = malloc(sizeof(lfVariableBucket));
     next->key = key;

@@ -55,7 +55,7 @@ void lf_error_print(const char *file, const char *source, size_t idx_start, size
         line_start -= 1;
     }
 
-    size_t column = idx_start - line_start + 1;
+    size_t column = idx_start - line_start + 1 - (source[line_start] == '\n' ? 1 : 0);
     size_t line = 1;
     while (line_start > 0 && source[line_start]) {
         if (source[line_start] == '\n') {
