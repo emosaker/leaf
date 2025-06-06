@@ -51,15 +51,23 @@ void restore(lfParseCtx *ctx, const lfParseCtxState *state) {
     ctx->described = false;
 }
 
+void parse_error_at(lfParseCtx *ctx, lfToken token, const char *message) {
+    lf_error_print(ctx->file, ctx->source, token.idx_start, token.idx_end, message);
+    ctx->errored = true;
+    ctx->described = true;
+}
+
+void parse_error_here(lfParseCtx *ctx, const char *message) {
+    parse_error_at(ctx, ctx->current, message);
+}
+
 lfNode *parse_expr(lfParseCtx *ctx);
 lfType *parse_type(lfParseCtx *ctx);
 lfNode *parse_statement(lfParseCtx *ctx);
 
 lfType *parse_typename(lfParseCtx *ctx) {
     if (ctx->current.type != TT_IDENTIFIER) {
-        lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected type");
-        ctx->errored = true;
-        ctx->described = true;
+        parse_error_here(ctx, "expected type");
         return NULL;
     }
     lfTypeName *typename = alloc(lfTypeName);
@@ -92,9 +100,7 @@ lfType *parse_nontrivial_type(lfParseCtx *ctx) {
                     is_map = true;
                     array_push(&keys, t);
                     if (is_array) {
-                        lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "invalid ':' in array type");
-                        ctx->errored = true;
-                        ctx->described = true;
+                        parse_error_here(ctx, "invalid ':' in array type");
                         array_delete(&keys);
                         array_delete(&values);
                         return NULL;
@@ -111,9 +117,7 @@ lfType *parse_nontrivial_type(lfParseCtx *ctx) {
                     is_array = true;
                     array_push(&values, t);
                     if (is_map) {
-                        lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected ':' in map type");
-                        ctx->errored = true;
-                        ctx->described = true;
+                        parse_error_here(ctx, "expected ':' in map type");
                         array_delete(&keys);
                         array_delete(&values);
                         return NULL;
@@ -122,10 +126,8 @@ lfType *parse_nontrivial_type(lfParseCtx *ctx) {
             } while (ctx->current.type == TT_COMMA);
         }
         if (ctx->current.type != TT_RBRACE) {
-            lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '}'");
-            lf_error_print(ctx->file, ctx->source, lbrace.idx_start, lbrace.idx_end, "... to close");
-            ctx->errored = true;
-            ctx->described = true;
+            parse_error_here(ctx, "expected '}'");
+            parse_error_at(ctx, lbrace, "... to close");
             array_delete(&keys);
             array_delete(&values);
             return NULL;
@@ -169,12 +171,10 @@ lfType *parse_nontrivial_type(lfParseCtx *ctx) {
             } while (ctx->current.type == TT_COMMA);
         }
         if (ctx->current.type != TT_RPAREN) {
-            lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected ')'");
-            lf_error_print(ctx->file, ctx->source, lparen.idx_start, lparen.idx_end, "... to close");
-            ctx->errored = true;
-            ctx->described = true;
+            parse_error_here(ctx, "expected ')'");
+            parse_error_at(ctx, lparen, "... to close");
             if (params != NULL) {
-                array_delete(params);
+                array_delete(&params);
             } else {
                 lf_type_deleter(&t);
             }
@@ -191,7 +191,7 @@ lfType *parse_nontrivial_type(lfParseCtx *ctx) {
             }
             lfType *ret = parse_type(ctx);
             if (ctx->errored) {
-                array_delete(params);
+                array_delete(&params);
                 return NULL;
             }
             lfFuncType *f = alloc(lfFuncType);
@@ -202,11 +202,9 @@ lfType *parse_nontrivial_type(lfParseCtx *ctx) {
         } else if (params == NULL && t) {
             return t;
         } else {
-            lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '->'");
-            ctx->errored = true;
-            ctx->described = true;
+            parse_error_here(ctx, "expected '->'");
             if (params != NULL) {
-                array_delete(params);
+                array_delete(&params);
             } else if (t) {
                 lf_type_deleter(&t);
             }
@@ -252,11 +250,9 @@ lfNode *parse_literal(lfParseCtx *ctx) {
         lfNode *expr = parse_expr(ctx);
         if (ctx->errored) return NULL;
         if (ctx->current.type != TT_RPAREN) {
+            parse_error_here(ctx, "expected ')'");
+            parse_error_at(ctx, lparen, "... to close");
             lf_node_deleter(&expr);
-            lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected ')'");
-            lf_error_print(ctx->file, ctx->source, lparen.idx_start, lparen.idx_end, "... to close");
-            ctx->errored = true;
-            ctx->described = true;
             return NULL;
         }
         advance(ctx);
@@ -312,11 +308,9 @@ lfNode *parse_literal(lfParseCtx *ctx) {
                     is_map = true;
                     array_push(&keys, expr);
                     if (is_arr) {
-                        lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "invalid ':' in array");
+                        parse_error_here(ctx, "invalid ':' in array");
                         array_delete(&keys);
                         array_delete(&values);
-                        ctx->errored = true;
-                        ctx->described = true;
                         return NULL;
                     }
                     advance(ctx);
@@ -331,23 +325,19 @@ lfNode *parse_literal(lfParseCtx *ctx) {
                     is_arr = true;
                     array_push(&values, expr);
                     if (is_map) {
-                        lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected ':' in map");
+                        parse_error_here(ctx, "expected ':' in map");
                         array_delete(&keys);
                         array_delete(&values);
-                        ctx->errored = true;
-                        ctx->described = true;
                         return NULL;
                     }
                 }
             } while (ctx->current.type == TT_COMMA);
         }
         if (ctx->current.type != TT_RBRACE) {
+            parse_error_here(ctx, "expected '}'");
+            parse_error_at(ctx, lbrace, "... to close");
             array_delete(&keys);
             array_delete(&values);
-            lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '}'");
-            lf_error_print(ctx->file, ctx->source, lbrace.idx_start, lbrace.idx_end, "... to close");
-            ctx->errored = true;
-            ctx->described = true;
             return NULL;
         }
         advance(ctx);
@@ -384,11 +374,10 @@ lfNode *parse_subscriptive(lfParseCtx *ctx) {
                 return NULL;
             }
             if (ctx->current.type != TT_RBRACKET) {
+                parse_error_here(ctx, "expected ']'");
+                parse_error_at(ctx, lbracket, "... to close");
+                lf_node_deleter(&index);
                 lf_node_deleter(&object);
-                lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected ']'");
-                lf_error_print(ctx->file, ctx->source, lbracket.idx_start, lbracket.idx_end, "... to close");
-                ctx->errored = true;
-                ctx->described = true;
                 return NULL;
             }
             advance(ctx);
@@ -415,10 +404,8 @@ lfNode *parse_subscriptive(lfParseCtx *ctx) {
         } else if (ctx->current.type == TT_DOT) {
             advance(ctx);
             if (ctx->current.type != TT_IDENTIFIER) {
+                parse_error_here(ctx, "expected identifier");
                 lf_node_deleter(&object);
-                lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected identifier");
-                ctx->errored = true;
-                ctx->described = true;
                 return NULL;
             }
             lfLiteralNode *index = alloc(lfLiteralNode);
@@ -465,12 +452,10 @@ lfNode *parse_subscriptive(lfParseCtx *ctx) {
                 } while (ctx->current.type == TT_COMMA);
             }
             if (ctx->current.type != TT_RPAREN) {
+                parse_error_here(ctx, "expected ')'");
+                parse_error_at(ctx, lparen, "... to close");
                 lf_node_deleter(&object);
                 array_delete(&args);
-                lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected ')'");
-                lf_error_print(ctx->file, ctx->source, lparen.idx_start, lparen.idx_end, "... to close");
-                ctx->errored = true;
-                ctx->described = true;
                 return NULL;
             }
             advance(ctx);
@@ -576,33 +561,26 @@ lfNode *parse_comparative(lfParseCtx *ctx) {
 lfNode *parse_expr(lfParseCtx *ctx) {
     lfNode *expr = parse_comparative(ctx);
     if (ctx->errored && !ctx->described) {
-        lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected expression");
-        ctx->described = true;
+        parse_error_here(ctx, "expected expression");
     }
     return expr;
 }
 
 lfNode *parse_vardecl(lfParseCtx *ctx, bool allow_ref) {
     if (ctx->current.type != TT_KEYWORD) {
-        lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected 'var', 'const', or 'ref'");
-        ctx->errored = true;
-        ctx->described = true;
+        parse_error_here(ctx, "expected 'var', 'const', or 'ref'");
         return NULL;
     }
     bool is_const = !strcmp(ctx->current.value, "const");
     bool is_ref = !strcmp(ctx->current.value, "ref");
     if (!allow_ref && is_ref) {
-        lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "unexpected 'ref'");
-        ctx->errored = true;
-        ctx->described = true;
+        parse_error_here(ctx, "unexpected 'ref'");
         return NULL;
     }
     if (!strcmp(ctx->current.value, "var") || is_const || is_ref) {
         advance(ctx);
         if (ctx->current.type != TT_IDENTIFIER) {
-            lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected variable name");
-            ctx->errored = true;
-            ctx->described = true;
+            parse_error_here(ctx, "expected variable name");
             return NULL;
         }
         lfToken name = ctx->current;
@@ -648,9 +626,7 @@ bool parse_generics(lfParseCtx *ctx, lfArray(lfToken) *type_names, lfArray(lfTyp
         lfToken lt = ctx->current;
         advance(ctx);
         if (ctx->current.type == TT_COMMA) {
-            lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "unexpected ','");
-            ctx->errored = true;
-            ctx->described = true;
+            parse_error_here(ctx, "unexpected ','");
             array_delete(type_names);
             array_delete(types);
             return false;
@@ -660,9 +636,7 @@ bool parse_generics(lfParseCtx *ctx, lfArray(lfToken) *type_names, lfArray(lfTyp
                 advance(ctx);
             }
             if (ctx->current.type != TT_IDENTIFIER) {
-                lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected name");
-                ctx->errored = true;
-                ctx->described = true;
+                parse_error_here(ctx, "expected name");
                 array_delete(type_names);
                 array_delete(types);
                 return false;
@@ -685,10 +659,8 @@ bool parse_generics(lfParseCtx *ctx, lfArray(lfToken) *type_names, lfArray(lfTyp
             }
         } while (ctx->current.type == TT_COMMA);
         if (ctx->current.type != TT_GT) {
-            lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '>'");
-            lf_error_print(ctx->file, ctx->source, lt.idx_start, lt.idx_end, "... to close");
-            ctx->errored = true;
-            ctx->described = true;
+            parse_error_here(ctx, "expected '>'");
+            parse_error_at(ctx, lt, "... to close");
             array_delete(type_names);
             array_delete(types);
             return false;
@@ -701,9 +673,7 @@ bool parse_generics(lfParseCtx *ctx, lfArray(lfToken) *type_names, lfArray(lfTyp
 
 lfNode *parse_fn(lfParseCtx *ctx) {
     if (ctx->current.type != TT_KEYWORD || strcmp(ctx->current.value, "fn")) {
-        lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected 'fn'");
-        ctx->errored = true;
-        ctx->described = true;
+        parse_error_here(ctx, "expected 'fn'");
         return NULL;
     }
     advance(ctx);
@@ -713,9 +683,7 @@ lfNode *parse_fn(lfParseCtx *ctx) {
         return NULL;
     }
     if (ctx->current.type != TT_IDENTIFIER) {
-        lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected function name");
-        ctx->errored = true;
-        ctx->described = true;
+        parse_error_here(ctx, "expected function name");
         array_delete(&type_names);
         array_delete(&types);
         return NULL;
@@ -724,9 +692,8 @@ lfNode *parse_fn(lfParseCtx *ctx) {
     advance(ctx);
     lfToken lparen = ctx->current;
     if (ctx->current.type != TT_LPAREN) {
-        lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '('");
-        ctx->errored = true;
-        ctx->described = true;
+        parse_error_here(ctx, "expected '('");
+        lf_token_deleter(&name);
         array_delete(&type_names);
         array_delete(&types);
         return NULL;
@@ -741,8 +708,7 @@ lfNode *parse_fn(lfParseCtx *ctx) {
             lfVarDeclNode *param = (lfVarDeclNode *)parse_vardecl(ctx, true);
             if (ctx->errored) {
                 if (!ctx->described) {
-                    lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected parameter");
-                    ctx->described = true;
+                    parse_error_here(ctx, "expected parameter");
                 }
                 lf_token_deleter(&name);
                 array_delete(&params);
@@ -754,10 +720,8 @@ lfNode *parse_fn(lfParseCtx *ctx) {
         } while (ctx->current.type == TT_COMMA);
     }
     if (ctx->current.type != TT_RPAREN) {
-        lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected ')'");
-        lf_error_print(ctx->file, ctx->source, lparen.idx_start, lparen.idx_end, "... to close");
-        ctx->described = true;
-        ctx->errored = true;
+        parse_error_here(ctx, "expected ')'");
+        parse_error_at(ctx, lparen, "... to close");
         lf_token_deleter(&name);
         array_delete(&params);
         array_delete(&type_names);
@@ -779,9 +743,7 @@ lfNode *parse_fn(lfParseCtx *ctx) {
     }
     lfToken lbrace = ctx->current;
     if (ctx->current.type != TT_LBRACE) {
-        lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '{'");
-        ctx->described = true;
-        ctx->errored = true;
+        parse_error_here(ctx, "expected '{'");
         lf_token_deleter(&name);
         array_delete(&params);
         if (type) {
@@ -808,21 +770,6 @@ lfNode *parse_fn(lfParseCtx *ctx) {
         }
         array_push(&body, statement);
     }
-    if (ctx->current.type != TT_RBRACE) { /* eof */
-        lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '}'");
-        lf_error_print(ctx->file, ctx->source, lbrace.idx_start, lbrace.idx_end, "... to close");
-        ctx->described = true;
-        ctx->errored = true;
-        lf_token_deleter(&name);
-        array_delete(params);
-        array_delete(body);
-        if (type) {
-            lf_type_deleter(&type);
-        }
-        array_delete(&type_names);
-        array_delete(&types);
-        return NULL;
-    }
     advance(ctx);
     lfFunctionNode *f = alloc(lfFunctionNode);
     f->type = NT_FUNC;
@@ -837,9 +784,7 @@ lfNode *parse_fn(lfParseCtx *ctx) {
 
 lfNode *parse_compound(lfParseCtx *ctx) {
     if (ctx->current.type != TT_LBRACE) {
-        lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '{'");
-        ctx->errored = true;
-        ctx->described = true;
+        parse_error_here(ctx, "expected '{'");
         return NULL;
     }
     lfToken lbrace = ctx->current;
@@ -854,13 +799,6 @@ lfNode *parse_compound(lfParseCtx *ctx) {
             return NULL;
         }
         array_push(&compound->statements, statement);
-    }
-    if (ctx->current.type != TT_RBRACE) {
-        lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '}'");
-        lf_error_print(ctx->file, ctx->source, lbrace.idx_start, lbrace.idx_end, "... to close");
-        ctx->errored = true;
-        ctx->described = true;
-        return NULL;
     }
     advance(ctx);
 
@@ -930,18 +868,14 @@ lfNode *parse_statement(lfParseCtx *ctx) {
         } else if (!strcmp(ctx->current.value, "class")) {
             advance(ctx);
             if (ctx->current.type != TT_IDENTIFIER) {
-                lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected class name");
-                ctx->errored = true;
-                ctx->described = true;
+                parse_error_here(ctx, "expected class name");
                 return NULL;
             }
             lfToken name = ctx->current;
             advance(ctx);
             lfToken lbrace = ctx->current;
             if (ctx->current.type != TT_LBRACE) {
-                lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected '{'");
-                ctx->errored = true;
-                ctx->described = true;
+                parse_error_here(ctx, "expected '{'");
                 lf_token_deleter(&name);
                 return NULL;
             }
@@ -958,12 +892,11 @@ lfNode *parse_statement(lfParseCtx *ctx) {
                 }
                 if (ctx->errored || statement == NULL) {
                     if (statement == NULL) {
-                        lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected 'var', 'const', 'fn', or '}'");
+                        parse_error_here(ctx, "expected 'var', 'const', 'fn', or '}'");
+                        parse_error_at(ctx, lbrace, "... in scope"); /* ... to close */
                     }
                     array_delete(&body);
                     lf_token_deleter(&name);
-                    ctx->errored = true;
-                    ctx->described = true;
                     return NULL;
                 }
                 array_push(&body, statement);
@@ -978,9 +911,7 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             advance(ctx);
             lfArray(lfToken) path = array_new(lfToken, lf_token_deleter);
             if (ctx->current.type != TT_IDENTIFIER) {
-                lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected include path");
-                ctx->errored = true;
-                ctx->described = true;
+                parse_error_here(ctx, "expected include path");
                 array_delete(&path);
                 return NULL;
             }
@@ -989,9 +920,7 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             while (ctx->current.type == TT_DOT) {
                 advance(ctx);
                 if (ctx->current.type != TT_IDENTIFIER) {
-                    lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected include path");
-                    ctx->errored = true;
-                    ctx->described = true;
+                    parse_error_here(ctx, "expected include path");
                     array_delete(&path);
                     return NULL;
                 }
@@ -1009,8 +938,7 @@ lfNode *parse_statement(lfParseCtx *ctx) {
 
     lfNode *expr = parse_comparative(ctx); /* avoid the expr error printer */
     if (ctx->errored && !ctx->described) {
-        lf_error_print(ctx->file, ctx->source, ctx->current.idx_start, ctx->current.idx_end, "expected statement or expression");
-        ctx->described = true;
+        parse_error_here(ctx, "expected statement or expression");
     }
 
     return expr;

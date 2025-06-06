@@ -247,7 +247,7 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                     char opener = source[i];
                     i += 1;
                     lfArray(char) buffer = array_new(char);
-                    while (source[i] && source[i] != opener) {
+                    while (source[i] && source[i] != '\n' && source[i] != opener) {
                         if (source[i] == '\\') {
                             switch (source[i + 1]) {
                                 case 'a':
