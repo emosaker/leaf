@@ -308,9 +308,13 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
 
     for (size_t i = 0; i < length(&node->body); i++)
         if (!visit(ctx, node->body[i])) {
+            array_delete(&ctx->current);
+            array_delete(&frame.upvalues);
+            array_delete(&frame.scope);
+            length(&ctx->fnstack) -= 1;
             /* caller cleans up */
             ctx->current = old_body;
-
+            ctx->scope = ctx->fnstack[length(&ctx->fnstack) - 1]->scope;
             return false;
         }
 
