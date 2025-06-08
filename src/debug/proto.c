@@ -6,19 +6,19 @@
 
 #include "compiler/bytecode.h"
 #include "compiler/compile.h"
-#include "debug/chunk.h"
+#include "debug/proto.h"
 
-void print_instruction(const lfChunk *chunk, uint32_t *code, size_t *i) {
+void print_instruction(const lfProto *proto, uint32_t *code, size_t *i) {
     uint32_t ins = code[*i];
     switch (INS_OP(ins)) {
         case OP_PUSHSI:
             printf("pushshort %u\n", INS_E(ins));
             break;
         case OP_PUSHLI:
-            printf("pushlong %lu\n", chunk->ints[INS_E(ins)]);
+            printf("pushlong %lu\n", proto->ints[INS_E(ins)]);
             break;
         case OP_PUSHS:
-            printf("pushstring \"%s\"\n", chunk->strings[INS_E(ins)]);
+            printf("pushstring \"%s\"\n", proto->strings[INS_E(ins)]);
             break;
         case OP_PUSHNULL:
             printf("pushnull\n");
@@ -28,10 +28,10 @@ void print_instruction(const lfChunk *chunk, uint32_t *code, size_t *i) {
             break;
 
         case OP_GETGLOBAL:
-            printf("getglob name=%s\n", chunk->strings[INS_E(ins)]);
+            printf("getglob name=%s\n", proto->strings[INS_E(ins)]);
             break;
         case OP_SETGLOBAL:
-            printf("setglob name=%s\n", chunk->strings[INS_E(ins)]);
+            printf("setglob name=%s\n", proto->strings[INS_E(ins)]);
             break;
         case OP_GETUPVAL:
             printf("getupval offset=%d\n", INS_E(ins));
@@ -93,7 +93,7 @@ void print_instruction(const lfChunk *chunk, uint32_t *code, size_t *i) {
             break;
 
         case OP_CL:
-            printf("closure proto=%s\n", chunk->protos[INS_E(ins)].name != 0 ? chunk->strings[chunk->protos[INS_E(ins)].name - 1] : "<anonymous>");
+            printf("closure proto=%s\n", proto->protos[INS_E(ins)]->name != 0 ? proto->protos[INS_E(ins)]->strings[proto->protos[INS_E(ins)]->name - 1] : "<anonymous>");
             break;
         case OP_CAPTURE:
             printf("capture offset=%d by=%s\n", INS_D(ins), INS_A(ins) == UVT_REF ? "ref" : "idx");
@@ -112,23 +112,19 @@ void print_instruction(const lfChunk *chunk, uint32_t *code, size_t *i) {
     *i += 1;
 }
 
-void lf_chunk_print(const lfChunk *chunk) {
-    for (int i = 0; i < chunk->szprotos; i++) {
-        lfProto proto = chunk->protos[i];
-        if (proto.name != 0) {
-            printf("%s", chunk->strings[proto.name - 1]);
-        } else {
-            printf("<anonymous>");
-        }
-        if (i == chunk->main) {
-            printf(" (main):\n");
-        } else {
-            printf(":\n");
-        }
-        size_t i = 0;
-        while (i < proto.szcode) {
-            printf("  ");
-            print_instruction(chunk, proto.code, &i);
-        }
+void lf_proto_print(const lfProto *proto) {
+    for (int i = 0; i < proto->szprotos; i++) {
+        lfProto *child = proto->protos[i];
+        lf_proto_print(child);
+    }
+    if (proto->name != 0) {
+        printf("%s:\n", proto->strings[proto->name - 1]);
+    } else {
+        printf("<anonymous>:\n");
+    }
+    size_t i = 0;
+    while (i < proto->szcode) {
+        printf("  ");
+        print_instruction(proto, proto->code, &i);
     }
 }

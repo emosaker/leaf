@@ -28,7 +28,7 @@ typedef struct lfCompilerCtx {
     size_t top; /* stack top */
     bool discarded; /* whether the value of the currently compiled expression will be discarded */
     bool isclass; /* whether the compiler is compiling the body of a class */
-    lfArray(lfProto) protos;
+    lfArray(lfProto *) protos;
     lfArray(char *) strings;
     lfArray(uint64_t) ints;
     lfArray(uint8_t) current;
@@ -36,6 +36,6 @@ typedef struct lfCompilerCtx {
     lfArray(lfStackFrame *) fnstack;
 } lfCompilerCtx;
 
-lfChunk *lf_compile(const char *source, const char *file);
+lfProto *lf_compile(const char *source, const char *file);
 
 #endif /* LEAF_COMPILE_H */

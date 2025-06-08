@@ -69,20 +69,18 @@ typedef enum lfOpCode {
 typedef struct lfProto {
     size_t szcode;
     uint32_t *code;
-    size_t name;
-} lfProto;
-
-typedef struct lfChunk {
     size_t szstrings;
     char **strings;
     size_t szints;
     uint64_t *ints;
+    size_t szfloats;
+    double *floats;
     size_t szprotos;
-    lfProto *protos;
-    size_t main;
-} lfChunk;
+    struct lfProto **protos;
+    size_t name;
+} lfProto;
 
-void lf_chunk_delete(lfChunk *chunk);
+void lf_proto_deleter(lfProto **proto);
 
 #define INS_OP(INSTRUCTION) (((INSTRUCTION) >> 0)  & 0xFF)
 #define INS_A(INSTRUCTION)  (((INSTRUCTION) >> 8)  & 0xFF)

@@ -18,10 +18,6 @@
 #include "parser/parse.h"
 #include "parser/token.h"
 
-void proto_deleter(lfProto *proto) {
-    free(proto->code);
-}
-
 void string_deleter(char **string) {
     free(*string);
 }
@@ -299,10 +295,16 @@ bool visit_return(lfCompilerCtx *ctx, lfReturnNode *node) {
 bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
     lfArray(uint8_t) old_body = ctx->current;
     size_t old_top = ctx->top;
+    lfArray(uint64_t) old_ints = ctx->ints;
+    lfArray(lfProto *) old_protos = ctx->protos;
+    lfArray(char *) old_strings = ctx->strings;
 
     ctx->current = array_new(uint8_t);
     ctx->scope = lf_variablemap_create(256);
     ctx->top = length(&node->params); /* args passed on stack */
+    ctx->protos = array_new(lfProto *, lf_proto_deleter);
+    ctx->strings = array_new(char *, string_deleter);
+    ctx->ints = array_new(uint64_t);
 
     lfStackFrame frame = (lfStackFrame) {
         .scope = ctx->scope,
@@ -330,14 +332,27 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
             return false;
         }
 
-    lfProto func = (lfProto) {
-        .code = malloc(length(&ctx->current)),
-        .szcode = length(&ctx->current) / 4,
-        .name = new_string(ctx, node->name.value, strlen(node->name.value)) + 1
-    };
-    memcpy(func.code, ctx->current, length(&ctx->current));
-    array_push(&ctx->protos, func);
+    lfProto *func = malloc(sizeof(lfProto));
+    func->code = malloc(length(&ctx->current));
+    func->szcode = length(&ctx->current) / 4;
+    func->name = new_string(ctx, node->name.value, strlen(node->name.value)) + 1;
+    func->protos = malloc(sizeof(lfProto *) * length(&ctx->protos));
+    func->szprotos = length(&ctx->protos);
+    func->strings = malloc(sizeof(char *) * length(&ctx->strings));
+    func->szstrings = length(&ctx->strings);
+    func->ints = malloc(sizeof(uint64_t) * length(&ctx->ints));
+    func->szints = length(&ctx->ints);
 
+    memcpy(func->code, ctx->current, length(&ctx->current));
+    memcpy(func->protos, ctx->protos, sizeof(lfProto *) * length(&ctx->protos));
+    memcpy(func->strings, ctx->strings, sizeof(char *) * length(&ctx->strings));
+    memcpy(func->ints, ctx->ints, sizeof(uint64_t) * length(&ctx->ints));
+
+    deleter(&ctx->strings) = NULL;
+    deleter(&ctx->protos) = NULL;
+    array_delete(&ctx->strings);
+    array_delete(&ctx->protos);
+    array_delete(&ctx->ints);
     array_delete(&ctx->current);
     array_delete(&ctx->fnstack[length(&ctx->fnstack) - 1]->scope);
     length(&ctx->fnstack) -= 1;
@@ -345,6 +360,11 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
     ctx->scope = ctx->fnstack[length(&ctx->fnstack) - 1]->scope;
     ctx->top = old_top;
     ctx->current = old_body;
+    ctx->protos = old_protos;
+    ctx->strings = old_strings;
+    ctx->ints = old_ints;
+
+    array_push(&ctx->protos, func);
 
     for (size_t i = 0; i < length(&frame.upvalues); i++) {
         emit_insn_ad(ctx, OP_CAPTURE, frame.upvalues[i].by, frame.upvalues[i].index);
@@ -444,7 +464,7 @@ bool visit(lfCompilerCtx *ctx, lfNode *node) {
     }
 }
 
-lfChunk *lf_compile(const char *source, const char *file) {
+lfProto *lf_compile(const char *source, const char *file) {
     lfNode *ast = lf_parse(source, file);
     if (ast == NULL) {
         return NULL;
@@ -455,7 +475,7 @@ lfChunk *lf_compile(const char *source, const char *file) {
         .source = source,
         .top = 0,
         .discarded = true,
-        .protos = array_new(lfProto, proto_deleter),
+        .protos = array_new(lfProto *, lf_proto_deleter),
         .strings = array_new(char *, string_deleter),
         .ints = array_new(uint64_t),
         .current = array_new(uint8_t),
@@ -481,47 +501,43 @@ lfChunk *lf_compile(const char *source, const char *file) {
         return NULL;
     }
 
-    lfProto main = (lfProto) {
-        .code = malloc(length(&ctx.current)),
-        .szcode = length(&ctx.current) / 4,
-        .name = 0
-    };
-    memcpy(main.code, ctx.current, length(&ctx.current));
-    array_push(&ctx.protos, main);
+    lfProto *main = malloc(sizeof(lfProto));
+    main->code = malloc(length(&ctx.current));
+    main->szcode = length(&ctx.current) / 4;
+    main->name = 0;
+    main->protos = malloc(sizeof(lfProto *) * length(&ctx.protos));
+    main->szprotos = length(&ctx.protos);
+    main->strings = malloc(sizeof(char *) * length(&ctx.strings));
+    main->szstrings = length(&ctx.strings);
+    main->ints = malloc(sizeof(uint64_t) * length(&ctx.ints));
+    main->szints = length(&ctx.ints);
 
-    lfChunk *chunk = malloc(sizeof(lfChunk));
-    chunk->protos = malloc(sizeof(lfProto) * length(&ctx.protos));
-    chunk->szprotos = length(&ctx.protos);
-    chunk->strings = malloc(sizeof(char *) * length(&ctx.strings));
-    chunk->szstrings = length(&ctx.strings);
-    chunk->ints = malloc(sizeof(uint64_t) * length(&ctx.ints));
-    chunk->szints = length(&ctx.ints);
-    chunk->main = length(&ctx.protos) - 1;
-
-    memcpy(chunk->protos, ctx.protos, sizeof(lfProto) * length(&ctx.protos));
-    memcpy(chunk->strings, ctx.strings, sizeof(char *) * length(&ctx.strings));
-    memcpy(chunk->ints, ctx.ints, sizeof(uint64_t) * length(&ctx.ints));
+    memcpy(main->code, ctx.current, length(&ctx.current));
+    memcpy(main->protos, ctx.protos, sizeof(lfProto *) * length(&ctx.protos));
+    memcpy(main->strings, ctx.strings, sizeof(char *) * length(&ctx.strings));
+    memcpy(main->ints, ctx.ints, sizeof(uint64_t) * length(&ctx.ints));
 
     deleter(&ctx.strings) = NULL;
     deleter(&ctx.protos) = NULL;
     array_delete(&ctx.strings);
-    array_delete(&ctx.protos);
     array_delete(&ctx.current);
+    array_delete(&ctx.protos);
     array_delete(&ctx.ints);
     array_delete(&ctx.scope);
     array_delete(&frame.upvalues);
     array_delete(&ctx.fnstack);
     lf_node_deleter(&ast);
-    return chunk;
+    return main;
 }
 
-void lf_chunk_delete(lfChunk *chunk) {
-    for (size_t i = 0; i < chunk->szprotos; i++)
-        proto_deleter(chunk->protos + i);
-    for (size_t i = 0; i < chunk->szstrings; i++)
-        string_deleter(chunk->strings + i);
-    free(chunk->protos);
-    free(chunk->strings);
-    free(chunk->ints);
-    free(chunk);
+void lf_proto_deleter(lfProto **proto) {
+    for (size_t i = 0; i < (*proto)->szprotos; i++)
+        lf_proto_deleter((*proto)->protos + i);
+    for (size_t i = 0; i < (*proto)->szstrings; i++)
+        string_deleter((*proto)->strings + i);
+    free((*proto)->protos);
+    free((*proto)->strings);
+    free((*proto)->ints);
+    free((*proto)->code);
+    free((*proto));
 }

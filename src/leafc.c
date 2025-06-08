@@ -7,7 +7,7 @@
 #include <stdlib.h>
 
 #include "compiler/compile.h"
-#include "debug/chunk.h"
+#include "debug/proto.h"
 #include "lib/ansi.h"
 
 #define FATAL FG_RED BOLD "fatal: " RESET
@@ -39,15 +39,15 @@ int main(int argc, const char **argv) {
     }
     buffer[sz] = 0;
 
-    lfChunk *chunk = lf_compile(buffer, file);
+    lfProto *chunk = lf_compile(buffer, file);
     if (chunk == NULL) {
         free(buffer);
         return 1;
     }
 
-    lf_chunk_print(chunk);
+    lf_proto_print(chunk);
 
-    lf_chunk_delete(chunk);
+    lf_proto_deleter(&chunk);
     free(buffer);
     return 0;
 }

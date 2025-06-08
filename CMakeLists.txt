@@ -12,7 +12,7 @@ set(LEAF_COMPILER_SOURCES
     src/compiler/compile.c
     src/compiler/bytecodebuilder.c
     src/compiler/variablemap.c
-    src/debug/chunk.c
+    src/debug/proto.c
 )
 
 add_executable(leafc src/leafc.c ${LEAF_COMPILER_SOURCES})
