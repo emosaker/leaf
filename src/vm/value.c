@@ -16,3 +16,10 @@ void lf_pushint(lfState *state, uint64_t value) {
 uint64_t lf_popint(lfState *state) {
     return (*--state->top).v.integer;
 }
+
+const char *lf_typeof(const lfValue *value) {
+    switch (value->type) {
+        case LF_INT: return "int";
+        case LF_CLOSURE: return "closure";
+    }
+}

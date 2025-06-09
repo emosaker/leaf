@@ -24,4 +24,6 @@ typedef struct lfValue {
     } v;
 } lfValue;
 
+const char *lf_typeof(const lfValue *value);
+
 #endif /* LEAF_VALUE_H */

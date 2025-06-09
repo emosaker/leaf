@@ -3,12 +3,18 @@
  */
 
 #include <stdio.h>
+#include <setjmp.h>
 
 #include "vm/vm.h"
 #include "compiler/bytecode.h"
+#include "vm/error.h"
 #include "vm/state.h"
+#include "vm/value.h"
 
 void lf_run(lfState *state, lfProto *proto) {
+    if (setjmp(state->error_buf) == 1) {
+        return;
+    }
     for (size_t i = 0; i < proto->szcode; i++) {
         uint32_t ins = proto->code[i];
         switch (INS_OP(ins)) {
@@ -21,24 +27,21 @@ void lf_run(lfState *state, lfProto *proto) {
 
             case OP_ADD: {
                 if (LF_STACKSIZE(state) < 2) {
-                    printf("too few stack values\n");
-                    state->errored = true;
-                    return;
+                    lf_error(state, "too few values for addition");
                 }
                 lfValue rhs = *--state->top;
                 lfValue lhs = *--state->top;
-                if (lhs.type != rhs.type) {
-                    printf("attempt to add values of varying types\n");
-                    state->errored = true;
-                    return;
-                }
                 switch (lhs.type) {
                     case LF_INT:
-                        lf_pushint(state, lhs.v.integer + rhs.v.integer);
+                        if (rhs.type == LF_INT) {
+                            lf_pushint(state, lhs.v.integer + rhs.v.integer);
+                        } else {
+                            goto unsupported;
+                        }
                         break;
+                    unsupported:
                     default:
-                        printf("unhandled type in add: %d\n", lhs.type);
-                        break;
+                        lf_errorf(state, "unsupported types for addition: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
                 }
             } break;
         }

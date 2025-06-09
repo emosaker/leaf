@@ -6,6 +6,7 @@
 #define LEAF_STATE_H
 
 #include <stdlib.h>
+#include <setjmp.h>
 #include <stdbool.h>
 
 #include "vm/value.h"
@@ -27,6 +28,7 @@ typedef struct lfState {
     lfValue *top;
 
     bool errored;
+    jmp_buf error_buf;
 } lfState;
 
 lfState *lf_state_create(void);
