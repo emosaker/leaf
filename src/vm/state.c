@@ -17,6 +17,9 @@ lfState *lf_state_create(void) {
 }
 
 void lf_state_delete(lfState *state) {
+    for (size_t i = 0; i < LF_STACKSIZE(state); i++) {
+        lf_deletevalue(state->stack + i);
+    }
     free(state->stack);
     free(state);
 }

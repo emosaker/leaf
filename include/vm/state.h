@@ -35,6 +35,9 @@ lfState *lf_state_create(void);
 void lf_state_delete(lfState *state);
 
 void lf_pushint(lfState *state, uint64_t value);
-uint64_t lf_popint(lfState *state);
+void lf_pushstring(lfState *state, char *value, size_t length);
+void lf_pushlfstring(lfState *state, lfArray(char) value); /* no-clone version, requires an lfArray */
+lfValue lf_pop(lfState *state);
+void lf_push(lfState *state, const lfValue *value);
 
 #endif /* LEAF_STATE_H */

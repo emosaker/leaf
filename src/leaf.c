@@ -9,6 +9,7 @@
 #include "compiler/compile.h"
 #include "lib/ansi.h"
 #include "vm/state.h"
+#include "vm/value.h"
 #include "vm/vm.h"
 
 #define FATAL FG_RED BOLD "fatal: " RESET
@@ -49,8 +50,11 @@ int main(int argc, const char **argv) {
     lfState *state = lf_state_create();
 
     lf_run(state, chunk);
-    if (!state->errored) {
-        printf("%ld\n", lf_popint(state));
+    if (!state->errored && LF_STACKSIZE(state) > 0) {
+        lfValue top = lf_pop(state);
+        lf_printvalue(&top);
+        printf("\n");
+        lf_deletevalue(&top);
     }
 
     lf_state_delete(state);
