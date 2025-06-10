@@ -160,7 +160,10 @@ bool visit_vardecl(lfCompilerCtx *ctx, lfVarDeclNode *node) {
     if (node->initializer) {
         if (!nodiscard(ctx, node->initializer))
             return false;
-    } else emit_op(ctx, OP_PUSHNULL);
+    } else {
+        emit_op(ctx, OP_PUSHNULL);
+        ctx->top += 1;
+    }
 
     lf_variablemap_insert(&ctx->scope, node->name.value, (lfVariable) {
         .stack_offset = ctx->top - 1,
@@ -433,6 +436,7 @@ bool visit_compound(lfCompilerCtx *ctx, lfCompoundNode *node) {
             return false;
         }
     array_delete(&ctx->scope);
+    if (ctx->top - old_top > 0) emit_insn_e(ctx, OP_POP, ctx->top - old_top);
     ctx->scope = old;
     ctx->top = old_top;
     return true;

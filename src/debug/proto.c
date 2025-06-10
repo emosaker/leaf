@@ -26,6 +26,9 @@ void print_instruction(const lfProto *proto, uint32_t *code, size_t *i) {
         case OP_DUP:
             printf("dup offset=%u\n", INS_E(ins));
             break;
+        case OP_POP:
+            printf("pop values=%d\n", INS_E(ins));
+            break;
 
         case OP_GETGLOBAL:
             printf("getglob name=%s\n", proto->strings[INS_E(ins)]);
