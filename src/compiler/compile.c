@@ -345,6 +345,8 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
     func->szstrings = length(&ctx->strings);
     func->ints = malloc(sizeof(uint64_t) * length(&ctx->ints));
     func->szints = length(&ctx->ints);
+    func->nupvalues = length(&frame.upvalues);
+    func->nargs = length(&node->params);
 
     memcpy(func->code, ctx->current, length(&ctx->current));
     memcpy(func->protos, ctx->protos, sizeof(lfProto *) * length(&ctx->protos));
@@ -369,10 +371,10 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
 
     array_push(&ctx->protos, func);
 
+    emit_insn_e(ctx, OP_CL, length(&ctx->protos) - 1);
     for (size_t i = 0; i < length(&frame.upvalues); i++) {
         emit_insn_ad(ctx, OP_CAPTURE, frame.upvalues[i].by, frame.upvalues[i].index);
     }
-    emit_insn_e(ctx, OP_CL, length(&ctx->protos) - 1);
     array_delete(&frame.upvalues);
 
     lfVariable i;

@@ -32,6 +32,8 @@ typedef struct lfState {
 
     lfValueMap globals;
 
+    struct lfValue **upvalues;
+
     bool errored;
     jmp_buf error_buf;
 } lfState;
@@ -43,6 +45,7 @@ typedef struct lfClosure {
     union {
         struct {
             lfProto *proto;
+            struct lfValue **upvalues;
         } lf;
         struct {
             lfccl func;
@@ -97,9 +100,12 @@ void lf_pushnull(lfState *state);
 void lf_pushlfstring(lfState *state, lfArray(char) value); /* no-clone version, requires an lfArray */
 lfValue lf_pop(lfState *state);
 void lf_push(lfState *state, const lfValue *value);
+void lf_getupval(lfState *state, int index);
+void lf_setupval(lfState *state, int index);
 
 /* value */
 void lf_newccl(lfState *state, lfccl func);
+void lf_newlfcl(lfState *state, lfProto *proto);
 
 const char *lf_typeof(const lfValue *value);
 void lf_printvalue(const lfValue *value);

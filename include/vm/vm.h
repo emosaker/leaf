@@ -8,6 +8,6 @@
 #include "compiler/bytecode.h"
 #include "vm/value.h"
 
-void lf_run(lfState *state, lfProto *proto);
+int lf_run(lfState *state, lfProto *proto);
 
 #endif /* LEAF_VM_H */

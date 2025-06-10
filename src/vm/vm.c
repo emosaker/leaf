@@ -12,10 +12,11 @@
 #include "vm/error.h"
 #include "vm/value.h"
 
-void lf_run(lfState *state, lfProto *proto) {
+int lf_run(lfState *state, lfProto *proto) {
     if (setjmp(state->error_buf) == 1) {
-        return;
+        return 0;
     }
+    int captured = 0;
     for (size_t i = 0; i < proto->szcode; i++) {
         uint32_t ins = proto->code[i];
         switch (INS_OP(ins)) {
@@ -38,12 +39,18 @@ void lf_run(lfState *state, lfProto *proto) {
                 state->top -= INS_E(ins);
                 break;
 
-            case OP_GETGLOBAL: {
+            case OP_GETGLOBAL:
                 lf_getglobal(state, proto->strings[INS_E(ins)]);
-            } break;
-            case OP_SETGLOBAL: {
+                break;
+            case OP_SETGLOBAL:
                 lf_setglobal(state, proto->strings[INS_E(ins)]);
-            } break;
+                break;
+            case OP_GETUPVAL:
+                lf_getupval(state, INS_E(ins));
+                break;
+            case OP_SETUPVAL:
+                lf_setupval(state, INS_E(ins));
+                break;
 
             case OP_ADD: {
                 lfValue rhs = lf_pop(state);
@@ -144,8 +151,13 @@ void lf_run(lfState *state, lfProto *proto) {
                         lf_pushnull(state);
                     }
                 } else {
-                    array_delete(&args);
-                    lf_error(state, "unimplemented");
+                    lfValue **old_up = state->upvalues;
+                    state->upvalues = cl.f.lf.upvalues;
+                    int returned = lf_run(state, cl.f.lf.proto);
+                    if (returned == 0 && retvals == 1) {
+                        lf_pushnull(state);
+                    }
+                    state->upvalues = old_up;
                 }
 
                 array_delete(&args);
@@ -159,7 +171,6 @@ void lf_run(lfState *state, lfProto *proto) {
 
                 while (state->top > state->base) {
                     lfValue v = lf_pop(state);
-                    lf_value_deleter(&v);
                 }
                 state->base = old_base;
 
@@ -168,6 +179,27 @@ void lf_run(lfState *state, lfProto *proto) {
                 }
                 array_delete(&ret);
             } break;
+
+            case OP_CL: {
+                lfProto *p = proto->protos[INS_E(ins)];
+                lf_newlfcl(state, p);
+                captured = 0;
+            } break;
+            case OP_CAPTURE: {
+                lfValue *cl = state->top - 1;
+                lfValue *capture;
+                if (INS_A(ins) == UVT_IDX) {
+                    capture = state->base + INS_D(ins);
+                } else {
+                    capture = state->upvalues[INS_D(ins)];
+                }
+                cl->v.cl.f.lf.upvalues[captured++] = capture;
+            } break;
+            case OP_RET: {
+                return INS_E(ins);
+            } break;
         }
     }
+
+    return 0;
 }

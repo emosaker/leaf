@@ -9,14 +9,6 @@
 #include "compiler/bytecode.h"
 #include "compiler/variablemap.h"
 
-typedef struct lfUpValue {
-    enum {
-        UVT_REF,
-        UVT_IDX
-    } by;
-    uint32_t index;
-} lfUpValue;
-
 typedef struct lfStackFrame {
     lfVariableMap scope;
     lfArray(lfUpValue) upvalues;

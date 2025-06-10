@@ -77,6 +77,15 @@ void lf_push(lfState *state, const lfValue *value) {
     *state->top++ = *value;
 }
 
+void lf_getupval(lfState *state, int index) {
+    lf_push(state, state->upvalues[index]);
+}
+
+void lf_setupval(lfState *state, int index) {
+    lfValue v = lf_pop(state);
+    *state->upvalues[index] = v;
+}
+
 void lf_newccl(lfState *state, lfccl func) {
     LF_CHECKTOP(state);
     *state->top++ = (lfValue) {
@@ -84,6 +93,18 @@ void lf_newccl(lfState *state, lfccl func) {
         .v.cl = (lfClosure) {
             .is_c = true,
             .f.c.func = func
+        }
+    };
+}
+
+void lf_newlfcl(lfState *state, lfProto *proto) {
+    LF_CHECKTOP(state);
+    *state->top++ = (lfValue) {
+        .type = LF_CLOSURE,
+        .v.cl = (lfClosure) {
+            .is_c = false,
+            .f.lf.proto = proto,
+            .f.lf.upvalues = malloc(proto->nupvalues * sizeof(lfValue *))
         }
     };
 }
@@ -101,7 +122,7 @@ const char *lf_typeof(const lfValue *value) {
 void lf_printvalue(const lfValue *value) {
     switch (value->type) {
         case LF_NULL:
-            printf("null\n");
+            printf("null");
             break;
         case LF_INT:
             printf("%ld", value->v.integer);
@@ -122,6 +143,11 @@ void lf_value_deleter(const lfValue *value) {
     switch (value->type) {
         case LF_STRING:
             array_delete(&value->v.string);
+            break;
+        case LF_CLOSURE:
+            if (!value->v.cl.is_c) {
+                free(value->v.cl.f.lf.upvalues);
+            }
             break;
         default:
             break;

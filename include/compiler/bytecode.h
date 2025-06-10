@@ -68,6 +68,14 @@ typedef enum lfOpCode {
     OP_CLS
 } lfOpCode;
 
+typedef struct lfUpValue {
+    enum {
+        UVT_REF,
+        UVT_IDX
+    } by;
+    uint32_t index;
+} lfUpValue;
+
 typedef struct lfProto {
     size_t szcode;
     uint32_t *code;
@@ -79,6 +87,10 @@ typedef struct lfProto {
     double *floats;
     size_t szprotos;
     struct lfProto **protos;
+
+    int nupvalues;
+    int nargs;
+
     size_t name;
 } lfProto;
 

@@ -15,6 +15,7 @@ lfState *lf_state_create(void) {
     state->top = state->stack;
     state->globals = lf_valuemap_create(512);
     state->errored = false;
+    state->upvalues = NULL;
 
     /* register builtins */
     lf_newccl(state, lf_print);
