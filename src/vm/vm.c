@@ -29,12 +29,22 @@ void lf_run(lfState *state, lfProto *proto) {
             case OP_PUSHS:
                 lf_pushstring(state, proto->strings[INS_E(ins)], strlen(proto->strings[INS_E(ins)]));
                 break;
+            case OP_PUSHNULL:
+                lf_pushnull(state);
+                break;
             case OP_DUP:
                 lf_push(state, state->base + INS_E(ins));
                 break;
             case OP_POP:
                 state->top -= INS_E(ins);
                 break;
+
+            case OP_GETGLOBAL: {
+                lf_getglobal(state, proto->strings[INS_E(ins)]);
+            } break;
+            case OP_SETGLOBAL: {
+                lf_setglobal(state, proto->strings[INS_E(ins)]);
+            } break;
 
             case OP_ADD: {
                 lfValue rhs = lf_pop(state);

@@ -15,6 +15,7 @@ typedef struct lfClosure {
 } lfClosure;
 
 typedef enum lfValueType {
+    LF_NULL,
     LF_INT,
     LF_STRING,
     LF_BOOL,

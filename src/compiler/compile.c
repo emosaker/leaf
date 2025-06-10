@@ -506,8 +506,8 @@ lfProto *lf_compile(const char *source, const char *file) {
     }
 
     lfProto *main = malloc(sizeof(lfProto));
-    main->code = malloc(length(&ctx.current) - 4);
-    main->szcode = length(&ctx.current) / 4 - 1;
+    main->code = malloc(length(&ctx.current));
+    main->szcode = length(&ctx.current) / 4;
     main->name = 0;
     main->protos = malloc(sizeof(lfProto *) * length(&ctx.protos));
     main->szprotos = length(&ctx.protos);
@@ -516,10 +516,14 @@ lfProto *lf_compile(const char *source, const char *file) {
     main->ints = malloc(sizeof(uint64_t) * length(&ctx.ints));
     main->szints = length(&ctx.ints);
 
-    memcpy(main->code, ctx.current, length(&ctx.current) - 4);
+    memcpy(main->code, ctx.current, length(&ctx.current));
     memcpy(main->protos, ctx.protos, sizeof(lfProto *) * length(&ctx.protos));
     memcpy(main->strings, ctx.strings, sizeof(char *) * length(&ctx.strings));
     memcpy(main->ints, ctx.ints, sizeof(uint64_t) * length(&ctx.ints));
+
+    if (main->szcode > 0 && INS_OP(main->code[main->szcode - 1]) == OP_POP) {
+        main->szcode -= 1;
+    }
 
     deleter(&ctx.strings) = NULL;
     deleter(&ctx.protos) = NULL;

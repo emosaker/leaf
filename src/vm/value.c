@@ -10,6 +10,20 @@
 #include "vm/state.h"
 #include "vm/value.h"
 
+void lf_setglobal(lfState *state, const char *key) {
+    lfValue v = lf_pop(state);
+    lf_valuemap_insert(&state->globals, key, v);
+}
+
+void lf_getglobal(lfState *state, const char *key) {
+    lfValue v;
+    if (lf_valuemap_lookup(&state->globals, key, &v)) {
+        lf_push(state, &v);
+    } else {
+        lf_pushnull(state);
+    }
+}
+
 void lf_pushint(lfState *state, uint64_t value) {
     LF_CHECKTOP(state);
     *state->top++ = (lfValue) {
@@ -39,6 +53,13 @@ void lf_pushbool(lfState *state, bool value) {
     };
 }
 
+void lf_pushnull(lfState *state) {
+    LF_CHECKTOP(state);
+    *state->top++ = (lfValue) {
+        .type = LF_NULL
+    };
+}
+
 void lf_pushlfstring(lfState *state, lfArray(char) value) {
     LF_CHECKTOP(state);
     *state->top++ = (lfValue) {
@@ -59,6 +80,7 @@ void lf_push(lfState *state, const lfValue *value) {
 
 const char *lf_typeof(const lfValue *value) {
     switch (value->type) {
+        case LF_NULL: return "null";
         case LF_INT: return "int";
         case LF_STRING: return "string";
         case LF_BOOL: return "bool";
@@ -68,6 +90,9 @@ const char *lf_typeof(const lfValue *value) {
 
 void lf_printvalue(const lfValue *value) {
     switch (value->type) {
+        case LF_NULL:
+            printf("null\n");
+            break;
         case LF_INT:
             printf("%ld", value->v.integer);
             break;

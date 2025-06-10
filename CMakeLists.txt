@@ -27,6 +27,7 @@ set(LEAF_INTERPRETER_SOURCES
     src/vm/state.c
     src/vm/value.c
     src/vm/error.c
+    src/vm/valuemap.c
     src/vm/vm.c
 )
 
