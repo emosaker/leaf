@@ -32,7 +32,9 @@ void lf_run(lfState *state, lfProto *proto) {
             case OP_DUP:
                 lf_push(state, state->base + INS_E(ins));
                 break;
-
+            case OP_POP:
+                state->top -= INS_E(ins);
+                break;
 
             case OP_ADD: {
                 lfValue rhs = lf_pop(state);
@@ -60,6 +62,32 @@ void lf_run(lfState *state, lfProto *proto) {
                     unsupported:
                     default:
                         lf_errorf(state, "unsupported types for addition: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
+                }
+                lf_deletevalue(&lhs);
+                lf_deletevalue(&rhs);
+            } break;
+            case OP_EQ: {
+                lfValue rhs = lf_pop(state);
+                lfValue lhs = lf_pop(state);
+                switch (lhs.type) {
+                    case LF_INT:
+                        if (rhs.type == LF_INT) {
+                            lf_pushbool(state, lhs.v.integer == rhs.v.integer);
+                        } /* TODO: float handler */ else {
+                            lf_pushbool(state, false);
+                        }
+                        break;
+                    case LF_STRING:
+                        if (rhs.type != LF_STRING) {
+                            lf_pushbool(state, false);
+                        } else if (length(&lhs.v.string) != length(&rhs.v.string)) {
+                            lf_pushbool(state, false);
+                        } else {
+                            lf_pushbool(state, !strncmp(lhs.v.string, rhs.v.string, length(&lhs.v.string)));
+                        }
+                        break;
+                    default:
+                        lf_pushbool(state, false);
                 }
                 lf_deletevalue(&lhs);
                 lf_deletevalue(&rhs);

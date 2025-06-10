@@ -5,6 +5,8 @@
 #ifndef LEAF_VALUE_H
 #define LEAF_VALUE_H
 
+#include <stdbool.h>
+
 #include "compiler/bytecode.h"
 #include "lib/array.h"
 
@@ -15,6 +17,7 @@ typedef struct lfClosure {
 typedef enum lfValueType {
     LF_INT,
     LF_STRING,
+    LF_BOOL,
     LF_CLOSURE
 } lfValueType;
 
@@ -23,6 +26,7 @@ typedef struct lfValue {
     union {
         uint64_t integer;
         lfArray(char) string;
+        bool boolean;
         lfClosure *cl;
     } v;
 } lfValue;

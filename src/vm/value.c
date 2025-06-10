@@ -31,6 +31,14 @@ void lf_pushstring(lfState *state, char *value, size_t length) {
     };
 }
 
+void lf_pushbool(lfState *state, bool value) {
+    LF_CHECKTOP(state);
+    *state->top++ = (lfValue) {
+        .type = LF_BOOL,
+        .v.boolean = value
+    };
+}
+
 void lf_pushlfstring(lfState *state, lfArray(char) value) {
     LF_CHECKTOP(state);
     *state->top++ = (lfValue) {
@@ -53,6 +61,7 @@ const char *lf_typeof(const lfValue *value) {
     switch (value->type) {
         case LF_INT: return "int";
         case LF_STRING: return "string";
+        case LF_BOOL: return "bool";
         case LF_CLOSURE: return "closure";
     }
 }
@@ -64,6 +73,9 @@ void lf_printvalue(const lfValue *value) {
             break;
         case LF_STRING:
             printf("%s", value->v.string);
+            break;
+        case LF_BOOL:
+            printf("%s", value->v.boolean ? "true" : "false");
             break;
         case LF_CLOSURE:
             printf("closure %p", value->v.cl);
