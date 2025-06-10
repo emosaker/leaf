@@ -47,11 +47,10 @@ int main(int argc, const char **argv) {
     }
 
     lfState *state = lf_state_create();
-
-    lf_run(state, chunk);
+    lf_newlfcl(state, chunk);
+    lf_call(state, 0, 0);
 
     lf_state_delete(state);
-    lf_proto_deleter(&chunk);
     free(buffer);
     return 0;
 }

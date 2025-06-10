@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "compiler/bytecode.h"
 #include "lib/array.h"
 #include "vm/error.h"
 #include "vm/value.h"
@@ -148,6 +149,7 @@ void lf_value_deleter(const lfValue *value) {
             if (!value->v.cl.is_c) {
                 free(value->v.cl.f.lf.upvalues);
             }
+            lf_proto_deleter((lfProto **)&value->v.cl.f.lf.proto);
             break;
         default:
             break;

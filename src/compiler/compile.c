@@ -518,6 +518,8 @@ lfProto *lf_compile(const char *source, const char *file) {
     main->szstrings = length(&ctx.strings);
     main->ints = malloc(sizeof(uint64_t) * length(&ctx.ints));
     main->szints = length(&ctx.ints);
+    main->nupvalues = 0;
+    main->nargs = 0;
 
     memcpy(main->code, ctx.current, length(&ctx.current));
     memcpy(main->protos, ctx.protos, sizeof(lfProto *) * length(&ctx.protos));

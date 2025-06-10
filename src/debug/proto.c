@@ -5,7 +5,6 @@
 #include <stdio.h>
 
 #include "compiler/bytecode.h"
-#include "compiler/compile.h"
 #include "debug/proto.h"
 
 void print_instruction(const lfProto *proto, uint32_t *code, size_t *i) {
