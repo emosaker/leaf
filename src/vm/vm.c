@@ -102,6 +102,19 @@ void lf_run(lfState *state, lfProto *proto) {
                 lf_value_deleter(&rhs);
             } break;
 
+            case OP_JMP:
+                i += INS_E(ins) / 4;
+                break;
+            case OP_JMPBACK:
+                i -= INS_E(ins) / 4 + 1;
+                break;
+            case OP_JMPIFNOT: {
+                lfValue v = lf_pop(state);
+                if (v.type == LF_NULL || (v.type == LF_BOOL && !v.v.boolean) || (v.type == LF_INT && v.v.integer == 0)) {
+                    i += INS_E(ins) / 4;
+                }
+            } break;
+
             case OP_CALL: {
                 uint8_t nargs = INS_A(ins);
                 uint8_t retvals = INS_B(ins);

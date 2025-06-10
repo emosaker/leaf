@@ -439,6 +439,7 @@ bool visit_compound(lfCompilerCtx *ctx, lfCompoundNode *node) {
     if (ctx->top - old_top > 0) emit_insn_e(ctx, OP_POP, ctx->top - old_top);
     ctx->scope = old;
     ctx->top = old_top;
+    ctx->fnstack[length(&ctx->fnstack) - 1]->scope = old;
     return true;
 }
 
