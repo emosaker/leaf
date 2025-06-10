@@ -10,7 +10,6 @@
 #include "compiler/bytecode.h"
 #include "lib/array.h"
 #include "vm/error.h"
-#include "vm/state.h"
 #include "vm/value.h"
 
 void lf_run(lfState *state, lfProto *proto) {
@@ -73,8 +72,8 @@ void lf_run(lfState *state, lfProto *proto) {
                     default:
                         lf_errorf(state, "unsupported types for addition: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
                 }
-                lf_deletevalue(&lhs);
-                lf_deletevalue(&rhs);
+                lf_value_deleter(&lhs);
+                lf_value_deleter(&rhs);
             } break;
             case OP_EQ: {
                 lfValue rhs = lf_pop(state);
@@ -99,8 +98,62 @@ void lf_run(lfState *state, lfProto *proto) {
                     default:
                         lf_pushbool(state, false);
                 }
-                lf_deletevalue(&lhs);
-                lf_deletevalue(&rhs);
+                lf_value_deleter(&lhs);
+                lf_value_deleter(&rhs);
+            } break;
+
+            case OP_CALL: {
+                uint8_t nargs = INS_A(ins);
+                uint8_t retvals = INS_B(ins);
+                lfArray(lfValue) args = array_new(lfValue);
+                array_reserve(&args, nargs);
+                length(&args) = nargs;
+                for (uint8_t i = 0; i < nargs; i++) {
+                    args[nargs - i - 1] = lf_pop(state);
+                }
+                lfValue func = lf_pop(state);
+                if (func.type != LF_CLOSURE) {
+                    array_delete(&args);
+                    lf_errorf(state, "attempt to call object of type %s", lf_typeof(&func));
+                }
+
+                lfValue *old_base = state->base;
+                state->base = state->top;
+
+                for (uint8_t i = 0; i < nargs; i++) {
+                    lf_push(state, args + i);
+                }
+
+                lfClosure cl = func.v.cl;
+                if (cl.is_c) {
+                    int returned = cl.f.c.func(state);
+                    if (returned == 0 && retvals == 1) {
+                        lf_pushnull(state);
+                    }
+                } else {
+                    array_delete(&args);
+                    lf_error(state, "unimplemented");
+                }
+
+                array_delete(&args);
+
+                lfArray(lfValue) ret = array_new(lfValue);
+                array_reserve(&ret, retvals);
+                length(&ret) = retvals;
+                for (uint8_t i = 0; i < retvals; i++) {
+                    ret[retvals - i - 1] = lf_pop(state);
+                }
+
+                while (state->top > state->base) {
+                    lfValue v = lf_pop(state);
+                    lf_value_deleter(&v);
+                }
+                state->base = old_base;
+
+                for (uint8_t i = 0; i < retvals; i++) {
+                    lf_push(state, ret + i);
+                }
+                array_delete(&ret);
             } break;
         }
     }

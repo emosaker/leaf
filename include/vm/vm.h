@@ -6,7 +6,7 @@
 #define LEAF_VM_H
 
 #include "compiler/bytecode.h"
-#include "vm/state.h"
+#include "vm/value.h"
 
 void lf_run(lfState *state, lfProto *proto);
 

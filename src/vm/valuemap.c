@@ -4,7 +4,7 @@
 
 #include <string.h>
 
-#include "vm/valuemap.h"
+#include "vm/value.h"
 #include "lib/array.h"
 
 void lf_valuebucket_deleter(lfValueBucket **bucket) {

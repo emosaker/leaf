@@ -7,7 +7,6 @@
 
 #include "lib/array.h"
 #include "vm/error.h"
-#include "vm/state.h"
 #include "vm/value.h"
 
 void lf_setglobal(lfState *state, const char *key) {
@@ -78,6 +77,17 @@ void lf_push(lfState *state, const lfValue *value) {
     *state->top++ = *value;
 }
 
+void lf_newccl(lfState *state, lfccl func) {
+    LF_CHECKTOP(state);
+    *state->top++ = (lfValue) {
+        .type = LF_CLOSURE,
+        .v.cl = (lfClosure) {
+            .is_c = true,
+            .f.c.func = func
+        }
+    };
+}
+
 const char *lf_typeof(const lfValue *value) {
     switch (value->type) {
         case LF_NULL: return "null";
@@ -103,12 +113,12 @@ void lf_printvalue(const lfValue *value) {
             printf("%s", value->v.boolean ? "true" : "false");
             break;
         case LF_CLOSURE:
-            printf("closure %p", value->v.cl);
+            printf("closure");
             break;
     }
 }
 
-void lf_deletevalue(const lfValue *value) {
+void lf_value_deleter(const lfValue *value) {
     switch (value->type) {
         case LF_STRING:
             array_delete(&value->v.string);

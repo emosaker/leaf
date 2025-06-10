@@ -7,7 +7,7 @@
 #include <setjmp.h>
 #include <stdlib.h>
 
-#include "vm/state.h"
+#include "vm/value.h"
 #include "vm/error.h"
 
 void error_jumpout(lfState *state) {

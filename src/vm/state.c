@@ -3,10 +3,9 @@
  */
 
 #include <stdlib.h>
-#include "vm/state.h"
 #include "lib/array.h"
 #include "vm/value.h"
-#include "vm/valuemap.h"
+#include "vm/builtins.h"
 
 lfState *lf_state_create(void) {
     lfState *state = malloc(sizeof(lfState));
@@ -16,12 +15,17 @@ lfState *lf_state_create(void) {
     state->top = state->stack;
     state->globals = lf_valuemap_create(512);
     state->errored = false;
+
+    /* register builtins */
+    lf_newccl(state, lf_print);
+    lf_setglobal(state, "print");
+
     return state;
 }
 
 void lf_state_delete(lfState *state) {
     for (size_t i = 0; i < LF_STACKSIZE(state); i++) {
-        lf_deletevalue(state->stack + i);
+        lf_value_deleter(state->stack + i);
     }
     array_delete(&state->globals);
     free(state->stack);
