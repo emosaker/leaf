@@ -27,6 +27,7 @@ void lf_valuemap_delete(lfValueMap *map) {
         if ((*map)[i])
             lf_valuebucket_deleter((*map) + i);
     }
+    array_delete(map);
 }
 
 size_t lf_valuemap_compute_hash(const lfValue *value) {
@@ -68,7 +69,7 @@ bool lf_valuemap_compare_values(const lfValue *lhs, const lfValue *rhs) {
 }
 
 lfValueMap lf_valuemap_create(size_t size) {
-    lfValueMap map = array_new(lfValueBucket *, lf_valuebucket_deleter);
+    lfValueMap map = array_new(lfValueBucket *);
     array_reserve(&map, size);
     for (size_t i = 0; i < size; i++)
         map[i] = NULL;
