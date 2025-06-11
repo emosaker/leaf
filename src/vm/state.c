@@ -16,6 +16,7 @@ lfState *lf_state_create(void) {
     state->globals = lf_valuemap_create(128);
     state->errored = false;
     state->upvalues = NULL;
+    state->gc_objects = NULL;
 
     /* register builtins */
     lf_newccl(state, lf_print);
@@ -25,10 +26,9 @@ lfState *lf_state_create(void) {
 }
 
 void lf_state_delete(lfState *state) {
-    for (size_t i = 0; i < LF_STACKSIZE(state); i++) {
-        lf_value_deleter(state->stack + i);
-    }
     lf_valuemap_delete(&state->globals);
+    state->globals = NULL;
+    lf_gc_step(state);
     free(state->stack);
     free(state);
 }

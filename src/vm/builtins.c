@@ -10,7 +10,7 @@
 
 int lf_print(lfState *state) {
     size_t nargs = LF_STACKSIZE(state);
-    lfArray(lfValue) values = array_new(lfValue, lf_value_deleter);
+    lfArray(lfValue) values = array_new(lfValue);
     array_reserve(&values, nargs);
     length(&values) = nargs;
     for (int i = 0; i < nargs; i++) {

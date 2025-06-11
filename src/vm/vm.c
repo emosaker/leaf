@@ -32,16 +32,16 @@ void lf_call(lfState *state, int nargs, int nret) {
         lf_push(state, args + i);
     }
 
-    lfClosure cl = func.v.cl;
-    if (cl.is_c) {
-        int returned = cl.f.c.func(state);
+    lfClosure *cl = func.v.cl;
+    if (cl->is_c) {
+        int returned = cl->f.c.func(state);
         if (returned == 0 && nret == 1) {
             lf_pushnull(state);
         }
     } else {
         lfValue **old_up = state->upvalues;
-        state->upvalues = cl.f.lf.upvalues;
-        int returned = lf_run(state, cl.f.lf.proto);
+        state->upvalues = cl->f.lf.upvalues;
+        int returned = lf_run(state, cl->f.lf.proto);
         if (returned == 0 && nret == 1) {
             lf_pushnull(state);
         }
@@ -59,6 +59,7 @@ void lf_call(lfState *state, int nargs, int nret) {
 
     while (state->top > state->base) {
         lfValue v = lf_pop(state);
+        lf_gc_unmark(&v);
     }
     state->base = old_base;
 
@@ -66,6 +67,8 @@ void lf_call(lfState *state, int nargs, int nret) {
         lf_push(state, ret + i);
     }
     array_delete(&ret);
+
+    lf_gc_step(state);
 }
 
 int lf_run(lfState *state, lfProto *proto) {
@@ -92,7 +95,10 @@ int lf_run(lfState *state, lfProto *proto) {
                 lf_push(state, state->base + INS_E(ins));
                 break;
             case OP_POP:
-                state->top -= INS_E(ins);
+                for (size_t i = 0; i < INS_E(ins); i++) {
+                    lfValue *v = --state->top;
+                    lf_gc_unmark(v);
+                }
                 break;
 
             case OP_GETGLOBAL:
@@ -123,13 +129,13 @@ int lf_run(lfState *state, lfProto *proto) {
                         if (rhs.type != LF_STRING) {
                             goto unsupported;
                         }
-                        lfArray(char) concatenated = array_new(char);
-                        array_reserve(&concatenated, length(&lhs.v.string) + length(&rhs.v.string) + 1);
-                        memcpy(concatenated, lhs.v.string, length(&lhs.v.string));
-                        memcpy(concatenated + length(&lhs.v.string), rhs.v.string, length(&rhs.v.string));
-                        length(&concatenated) = length(&lhs.v.string) + length(&rhs.v.string);
-                        concatenated[length(&concatenated)] = 0;
-                        lf_pushlfstring(state, concatenated);
+                        size_t len = lhs.v.string->length + rhs.v.string->length;
+                        char *concatenated = malloc(len + 1);
+                        memcpy(concatenated, lhs.v.string->string, lhs.v.string->length);
+                        memcpy(concatenated + lhs.v.string->length, rhs.v.string->string, rhs.v.string->length);
+                        concatenated[len] = 0;
+                        lf_pushstring(state, concatenated, len);
+                        free(concatenated);
                         break;
                     unsupported:
                     default:
@@ -152,10 +158,10 @@ int lf_run(lfState *state, lfProto *proto) {
                     case LF_STRING:
                         if (rhs.type != LF_STRING) {
                             lf_pushbool(state, false);
-                        } else if (length(&lhs.v.string) != length(&rhs.v.string)) {
+                        } else if (lhs.v.string->length != rhs.v.string->length) {
                             lf_pushbool(state, false);
                         } else {
-                            lf_pushbool(state, !strncmp(lhs.v.string, rhs.v.string, length(&lhs.v.string)));
+                            lf_pushbool(state, !strncmp(lhs.v.string->string, rhs.v.string->string, lhs.v.string->length));
                         }
                         break;
                     default:
@@ -195,7 +201,7 @@ int lf_run(lfState *state, lfProto *proto) {
                 } else {
                     capture = state->upvalues[INS_D(ins)];
                 }
-                cl->v.cl.f.lf.upvalues[captured++] = capture;
+                cl->v.cl->f.lf.upvalues[captured++] = capture;
             } break;
             case OP_RET: {
                 return INS_E(ins);

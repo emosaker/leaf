@@ -6,7 +6,6 @@
 #include <string.h>
 
 #include "compiler/bytecode.h"
-#include "lib/array.h"
 #include "vm/error.h"
 #include "vm/value.h"
 
@@ -44,16 +43,23 @@ void lf_pushint(lfState *state, uint64_t value) {
     };
 }
 
+lfString *alloc_string(lfState *state, size_t length) {
+    lfString *s = malloc(sizeof(lfString) + length + 1);
+    s->length = length;
+    s->gc_color = LF_GCWHITE;
+    s->next = state->gc_objects;
+    state->gc_objects = (lfGCObject *)s;
+    return s;
+}
+
 void lf_pushstring(lfState *state, char *value, size_t length) {
     LF_CHECKTOP(state);
-    lfArray(char) buf = array_new(char);
-    array_reserve(&buf, length + 1);
-    length(&buf) = length;
-    memcpy(buf, value, length);
-    buf[length] = 0;
+    lfString *s = alloc_string(state, length);
+    memcpy(s->string, value, length);
+    s->string[length] = 0;
     *state->top++ = (lfValue) {
         .type = LF_STRING,
-        .v.string = buf
+        .v.string = s
     };
 }
 
@@ -69,14 +75,6 @@ void lf_pushnull(lfState *state) {
     LF_CHECKTOP(state);
     *state->top++ = (lfValue) {
         .type = LF_NULL
-    };
-}
-
-void lf_pushlfstring(lfState *state, lfArray(char) value) {
-    LF_CHECKTOP(state);
-    *state->top++ = (lfValue) {
-        .type = LF_STRING,
-        .v.string = value
     };
 }
 
@@ -99,26 +97,41 @@ void lf_setupval(lfState *state, int index) {
     *state->upvalues[index] = v;
 }
 
+lfClosure *alloc_ccl(lfState *state) {
+    lfClosure *cl = malloc(sizeof(lfClosure));
+    cl->gc_color = LF_GCWHITE;
+    cl->next = state->gc_objects;
+    state->gc_objects = (lfGCObject *)cl;
+    return cl;
+}
+
 void lf_newccl(lfState *state, lfccl func) {
     LF_CHECKTOP(state);
+    lfClosure *cl = alloc_ccl(state);
+    cl->is_c = true;
+    cl->f.c.func = func;
     *state->top++ = (lfValue) {
         .type = LF_CLOSURE,
-        .v.cl = (lfClosure) {
-            .is_c = true,
-            .f.c.func = func
-        }
+        .v.cl = cl
     };
+}
+
+lfClosure *alloc_lfcl(lfState *state, size_t nupvalues) {
+    lfClosure *cl = malloc(sizeof(lfClosure) + sizeof(lfValue *) * nupvalues);
+    cl->gc_color = LF_GCWHITE;
+    cl->next = state->gc_objects;
+    state->gc_objects = (lfGCObject *)cl;
+    return cl;
 }
 
 void lf_newlfcl(lfState *state, lfProto *proto) {
     LF_CHECKTOP(state);
+    lfClosure *cl = alloc_lfcl(state, proto->nupvalues);
+    cl->is_c = false;
+    cl->f.lf.proto = proto;
     *state->top++ = (lfValue) {
         .type = LF_CLOSURE,
-        .v.cl = (lfClosure) {
-            .is_c = false,
-            .f.lf.proto = proto,
-            .f.lf.upvalues = malloc(proto->nupvalues * sizeof(lfValue *))
-        }
+        .v.cl = cl
     };
 }
 
@@ -141,7 +154,7 @@ void lf_printvalue(const lfValue *value) {
             printf("%ld", value->v.integer);
             break;
         case LF_STRING:
-            printf("%s", value->v.string);
+            printf("%s", value->v.string->string);
             break;
         case LF_BOOL:
             printf("%s", value->v.boolean ? "true" : "false");
@@ -155,13 +168,12 @@ void lf_printvalue(const lfValue *value) {
 void lf_value_deleter(const lfValue *value) {
     switch (value->type) {
         case LF_STRING:
-            array_delete(&value->v.string);
+            free(value->v.string);
             break;
         case LF_CLOSURE:
-            if (!value->v.cl.is_c) {
-                free(value->v.cl.f.lf.upvalues);
-            }
-            lf_proto_deleter((lfProto **)&value->v.cl.f.lf.proto);
+            if (!value->v.cl->is_c)
+                free(value->v.cl->f.lf.proto);
+            free(value->v.cl);
             break;
         default:
             break;

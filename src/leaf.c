@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "compiler/bytecode.h"
 #include "compiler/compile.h"
 #include "lib/ansi.h"
 #include "vm/value.h"
@@ -51,6 +52,7 @@ int main(int argc, const char **argv) {
     lf_call(state, 0, 0);
 
     lf_state_delete(state);
+    lf_proto_deleter(&chunk);
     free(buffer);
     return 0;
 }

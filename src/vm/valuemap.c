@@ -16,8 +16,12 @@ void lf_valuebucket_deleter(lfValueBucket **bucket) {
         while (current->previous) {
             lfValueBucket *tbf = current;
             current = current->previous;
+            lf_gc_unmark(&tbf->key);
+            lf_gc_unmark(&tbf->value);
             free(tbf);
         }
+        lf_gc_unmark(&current->key);
+        lf_gc_unmark(&current->value);
         free(current);
     }
 }
@@ -38,15 +42,15 @@ size_t lf_valuemap_compute_hash(const lfValue *value) {
             return value->v.boolean;
         case LF_STRING: {
             size_t hash = 0;
-            for (size_t i = 0; i < length(&value->v.string); i++) {
-                hash = (31 * hash + value->v.string[i]);
+            for (size_t i = 0; i < value->v.string->length; i++) {
+                hash = (31 * hash + value->v.string->string[i]);
             }
             return hash;
         }
         case LF_NULL:
             return 0;
         case LF_CLOSURE:
-            return (size_t)value->v.cl.f.lf.proto; /* func for C closures */
+            return (size_t)value->v.cl->f.lf.proto; /* func for C closures */
     }
 }
 
@@ -60,11 +64,11 @@ bool lf_valuemap_compare_values(const lfValue *lhs, const lfValue *rhs) {
         case LF_BOOL:
             return rhs->v.boolean == lhs->v.boolean;
         case LF_STRING:
-            return length(&lhs->v.string) == length(&rhs->v.string) && !strncmp(rhs->v.string, lhs->v.string, length(&lhs->v.string));
+            return lhs->v.string->length == rhs->v.string->length && !strncmp(rhs->v.string->string, lhs->v.string->string, lhs->v.string->length);
         case LF_NULL:
             return true;
         case LF_CLOSURE:
-            return lhs->v.cl.f.lf.proto == rhs->v.cl.f.lf.proto;
+            return lhs->v.cl->f.lf.proto == rhs->v.cl->f.lf.proto;
     }
 }
 

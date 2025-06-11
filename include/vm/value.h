@@ -5,12 +5,27 @@
 #ifndef LEAF_VALUE_H
 #define LEAF_VALUE_H
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <setjmp.h>
 #include <stdbool.h>
 
 #include "compiler/bytecode.h"
 #include "lib/array.h"
+
+typedef enum lfGCColor {
+    LF_GCBLACK,
+    LF_GCWHITE,
+    LF_GCGRAY
+} lfGCColor;
+
+#define LF_GCHEADER \
+    struct lfGCObject *next; \
+    lfGCColor gc_color;
+
+typedef struct lfGCObject {
+    LF_GCHEADER;
+} lfGCObject;
 
 #define LF_CHECKTOP(STATE) { \
     if (((STATE)->top - (STATE)->stack) / 8 >= (STATE)->stack_size) { \
@@ -34,6 +49,8 @@ typedef struct lfState {
 
     struct lfValue **upvalues;
 
+    struct lfGCObject *gc_objects;
+
     bool errored;
     jmp_buf error_buf;
 } lfState;
@@ -41,17 +58,24 @@ typedef struct lfState {
 typedef int(*lfccl)(lfState *state);
 
 typedef struct lfClosure {
+    LF_GCHEADER;
     bool is_c;
     union {
         struct {
             lfProto *proto;
-            struct lfValue **upvalues;
+            struct lfValue *upvalues[];
         } lf;
         struct {
             lfccl func;
         } c;
     } f;
 } lfClosure;
+
+typedef struct lfString {
+    LF_GCHEADER;
+    size_t length;
+    char string[];
+} lfString;
 
 typedef enum lfValueType {
     LF_NULL,
@@ -65,9 +89,9 @@ typedef struct lfValue {
     lfValueType type;
     union {
         uint64_t integer;
-        lfArray(char) string;
         bool boolean;
-        lfClosure cl;
+        lfString *string;
+        lfClosure *cl;
     } v;
 } lfValue;
 
@@ -100,7 +124,6 @@ void lf_pushint(lfState *state, uint64_t value);
 void lf_pushstring(lfState *state, char *value, size_t length);
 void lf_pushbool(lfState *state, bool value);
 void lf_pushnull(lfState *state);
-void lf_pushlfstring(lfState *state, lfArray(char) value); /* no-clone version, requires an lfArray */
 lfValue lf_pop(lfState *state);
 void lf_push(lfState *state, const lfValue *value);
 void lf_getupval(lfState *state, int index);
@@ -113,5 +136,9 @@ void lf_newlfcl(lfState *state, lfProto *proto);
 const char *lf_typeof(const lfValue *value);
 void lf_printvalue(const lfValue *value);
 void lf_value_deleter(const lfValue *value);
+
+/* gc */
+void lf_gc_step(lfState *state);
+void lf_gc_unmark(lfValue *v);
 
 #endif /* LEAF_VALUE_H */
