@@ -54,6 +54,7 @@ void lf_gc_step(lfState *state) {
 }
 
 void lf_gc_unmark(lfValue *v) {
+    if (v->type != LF_STRING && v->type != LF_CLOSURE) return;
     lfGCObject *header = (lfGCObject *)v->v.string;
     header->gc_color = LF_GCWHITE;
 }
