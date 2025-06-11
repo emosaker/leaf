@@ -19,7 +19,7 @@ lfState *lf_state_create(void) {
 
     /* register builtins */
     lf_newccl(state, lf_print);
-    lf_setglobal(state, "print");
+    lf_setsglobal(state, "print");
 
     return state;
 }

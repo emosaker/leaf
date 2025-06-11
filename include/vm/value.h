@@ -74,23 +74,25 @@ typedef struct lfValue {
 typedef struct lfValueBucket {
     struct lfValueBucket *next;
     struct lfValueBucket *previous;
-    const char *key;
+    lfValue key;
     lfValue value;
 } lfValueBucket;
 
 /* value map */
 lfValueMap lf_valuemap_create(size_t size);
 lfValueMap lf_valuemap_clone(const lfValueMap *map);
-bool lf_valuemap_lookup(const lfValueMap *map, const char *key, lfValue *out);
-void lf_valuemap_insert(lfValueMap *map, const char *key, lfValue value); /* TODO: possibly resize the map when beneficial */
+bool lf_valuemap_lookup(const lfValueMap *map, const lfValue *key, lfValue *out);
+void lf_valuemap_insert(lfValueMap *map, const lfValue *key, const lfValue *value); /* TODO: possibly resize the map when beneficial */
 
 /* state */
 lfState *lf_state_create(void);
 void lf_state_delete(lfState *state);
 
 /* globals */
-void lf_setglobal(lfState *state, const char *key);
-void lf_getglobal(lfState *state, const char *key);
+void lf_setglobal(lfState *state, const lfValue *key);
+void lf_getglobal(lfState *state, const lfValue *key);
+void lf_setsglobal(lfState *state, const char *key);
+void lf_getsglobal(lfState *state, const char *key);
 
 /* stack */
 void lf_pushint(lfState *state, uint64_t value);

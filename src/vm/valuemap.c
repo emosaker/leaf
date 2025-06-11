@@ -20,21 +20,42 @@ void lf_valuebucket_deleter(lfValueBucket **bucket) {
     }
 }
 
-size_t lf_valuemap_compute_hash(const char *s) {
-    int p = 59;
-    int m = 1e9 + 9;
-    size_t hash_value = 0;
-    size_t p_pow = 1;
-    size_t len = strlen(s);
-    for (size_t i = 0; i < len; i++) {
-        char c = s[i];
-        if (c >= 'a' && c <= 'z') hash_value = (hash_value + (s[i] - 'a' + 1) * p_pow) % m;
-        else if (c >= 'A' && c <= 'Z') hash_value = (hash_value + (s[i] - 'A' + 27) * p_pow) % m;
-        else hash_value = (hash_value + 53 * p_pow) % m;
-        p_pow = (p_pow * p) % m;
+size_t lf_valuemap_compute_hash(const lfValue *value) {
+    switch (value->type) {
+        case LF_INT:
+            return value->v.integer;
+        case LF_BOOL:
+            return value->v.boolean;
+        case LF_STRING: {
+            size_t hash = 0;
+            for (size_t i = 0; i < length(&value->v.string); i++) {
+                hash = (31 * hash + value->v.string[i]);
+            }
+            return hash;
+        }
+        case LF_NULL:
+            return 0;
+        case LF_CLOSURE:
+            return (size_t)value->v.cl.f.lf.proto; /* func for C closures */
     }
+}
 
-    return hash_value;
+bool lf_valuemap_compare_values(const lfValue *lhs, const lfValue *rhs) {
+    if (lhs->type != rhs->type) {
+        return false;
+    }
+    switch (lhs->type) {
+        case LF_INT:
+            return rhs->v.integer == lhs->v.integer;
+        case LF_BOOL:
+            return rhs->v.boolean == lhs->v.boolean;
+        case LF_STRING:
+            return length(&lhs->v.string) == length(&rhs->v.string) && !strncmp(rhs->v.string, lhs->v.string, length(&lhs->v.string));
+        case LF_NULL:
+            return true;
+        case LF_CLOSURE:
+            return lhs->v.cl.f.lf.proto == rhs->v.cl.f.lf.proto;
+    }
 }
 
 lfValueMap lf_valuemap_create(size_t size) {
@@ -74,7 +95,7 @@ lfValueMap lf_valuemap_clone(const lfValueMap *map) {
     return new_map;
 }
 
-bool lf_valuemap_lookup(const lfValueMap *map, const char *key, lfValue *out) {
+bool lf_valuemap_lookup(const lfValueMap *map, const lfValue *key, lfValue *out) {
     size_t hash = lf_valuemap_compute_hash(key) % length(map);
     lfValueBucket *b = (*map)[hash];
     if (b == NULL) return false;
@@ -83,7 +104,7 @@ bool lf_valuemap_lookup(const lfValueMap *map, const char *key, lfValue *out) {
         return true;
     }
     while (b) {
-        if (!strcmp(key, b->key)) {
+        if (lf_valuemap_compare_values(key, &b->key)) {
             if (out) *out = b->value;
             return true;
         }
@@ -92,11 +113,11 @@ bool lf_valuemap_lookup(const lfValueMap *map, const char *key, lfValue *out) {
     return false;
 }
 
-void lf_valuemap_insert(lfValueMap *map, const char *key, lfValue value) {
+void lf_valuemap_insert(lfValueMap *map, const lfValue *key, const lfValue *value) {
     size_t hash = lf_valuemap_compute_hash(key) % length(map);
     lfValueBucket *next = malloc(sizeof(lfValueBucket));
-    next->key = key;
-    next->value = value;
+    next->key = *key;
+    next->value = *value;
     next->previous = NULL;
     next->next = NULL;
     lfValueBucket *b = (*map)[hash];

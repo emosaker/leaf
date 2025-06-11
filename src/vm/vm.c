@@ -96,10 +96,10 @@ int lf_run(lfState *state, lfProto *proto) {
                 break;
 
             case OP_GETGLOBAL:
-                lf_getglobal(state, proto->strings[INS_E(ins)]);
+                lf_getsglobal(state, proto->strings[INS_E(ins)]);
                 break;
             case OP_SETGLOBAL:
-                lf_setglobal(state, proto->strings[INS_E(ins)]);
+                lf_setsglobal(state, proto->strings[INS_E(ins)]);
                 break;
             case OP_GETUPVAL:
                 lf_getupval(state, INS_E(ins));

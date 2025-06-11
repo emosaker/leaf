@@ -10,18 +10,30 @@
 #include "vm/error.h"
 #include "vm/value.h"
 
-void lf_setglobal(lfState *state, const char *key) {
+void lf_setglobal(lfState *state, const lfValue *key) {
     lfValue v = lf_pop(state);
-    lf_valuemap_insert(&state->globals, key, v);
+    lf_valuemap_insert(&state->globals, key, &v);
 }
 
-void lf_getglobal(lfState *state, const char *key) {
+void lf_getglobal(lfState *state, const lfValue *key) {
     lfValue v;
     if (lf_valuemap_lookup(&state->globals, key, &v)) {
         lf_push(state, &v);
     } else {
         lf_pushnull(state);
     }
+}
+
+void lf_setsglobal(lfState *state, const char *key) {
+    lf_pushstring(state, (char *)key, strlen(key));
+    lfValue v = lf_pop(state);
+    lf_setglobal(state, &v);
+}
+
+void lf_getsglobal(lfState *state, const char *key) {
+    lf_pushstring(state, (char *)key, strlen(key));
+    lfValue v = lf_pop(state);
+    lf_getglobal(state, &v);
 }
 
 void lf_pushint(lfState *state, uint64_t value) {
