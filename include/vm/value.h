@@ -83,6 +83,7 @@ lfValueMap lf_valuemap_create(size_t size);
 lfValueMap lf_valuemap_clone(const lfValueMap *map);
 bool lf_valuemap_lookup(const lfValueMap *map, const lfValue *key, lfValue *out);
 void lf_valuemap_insert(lfValueMap *map, const lfValue *key, const lfValue *value); /* TODO: possibly resize the map when beneficial */
+void lf_valuemap_delete(lfValueMap *map);
 
 /* state */
 lfState *lf_state_create(void);

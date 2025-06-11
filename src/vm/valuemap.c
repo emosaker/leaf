@@ -2,6 +2,8 @@
  * This file is part of the leaf programming language
  */
 
+#include <stdio.h>
+#include <stddef.h>
 #include <string.h>
 
 #include "vm/value.h"
@@ -17,6 +19,13 @@ void lf_valuebucket_deleter(lfValueBucket **bucket) {
             free(tbf);
         }
         free(current);
+    }
+}
+
+void lf_valuemap_delete(lfValueMap *map) {
+    for (size_t i = 0; i < size(map); i++) {
+        if ((*map)[i])
+            lf_valuebucket_deleter((*map) + i);
     }
 }
 
@@ -62,12 +71,12 @@ lfValueMap lf_valuemap_create(size_t size) {
     lfValueMap map = array_new(lfValueBucket *, lf_valuebucket_deleter);
     array_reserve(&map, size);
     for (size_t i = 0; i < size; i++)
-        array_push(&map, NULL);
+        map[i] = NULL;
     return map;
 }
 
 lfValueMap lf_valuemap_clone(const lfValueMap *map) {
-    size_t map_size = length(map);
+    size_t map_size = size(map);
     lfValueMap new_map = lf_valuemap_create(map_size);
 
     for (size_t i = 0; i < map_size; ++i) {
@@ -96,7 +105,7 @@ lfValueMap lf_valuemap_clone(const lfValueMap *map) {
 }
 
 bool lf_valuemap_lookup(const lfValueMap *map, const lfValue *key, lfValue *out) {
-    size_t hash = lf_valuemap_compute_hash(key) % length(map);
+    size_t hash = lf_valuemap_compute_hash(key) % size(map);
     lfValueBucket *b = (*map)[hash];
     if (b == NULL) return false;
     if (b->next == NULL) {
@@ -114,7 +123,20 @@ bool lf_valuemap_lookup(const lfValueMap *map, const lfValue *key, lfValue *out)
 }
 
 void lf_valuemap_insert(lfValueMap *map, const lfValue *key, const lfValue *value) {
-    size_t hash = lf_valuemap_compute_hash(key) % length(map);
+    if ((double)length(map) / (double)size(map) >= 0.75) { /* load factor over 75%, expand map */
+        lfValueMap expanded = lf_valuemap_create(size(map) * 2);
+        for (size_t i = 0; i < size(map); i++)
+            if ((*map)[i]) {
+                lfValueBucket *b = (*map)[i];
+                do {
+                    lf_valuemap_insert(&expanded, &b->key, &b->value);
+                    b = b->next;
+                } while (b);
+            }
+        lf_valuemap_delete(map);
+        *map = expanded;
+    }
+    size_t hash = lf_valuemap_compute_hash(key) % size(map);
     lfValueBucket *next = malloc(sizeof(lfValueBucket));
     next->key = *key;
     next->value = *value;
@@ -128,4 +150,5 @@ void lf_valuemap_insert(lfValueMap *map, const lfValue *key, const lfValue *valu
     } else {
         (*map)[hash] = next;
     }
+    length(map)++;
 }
