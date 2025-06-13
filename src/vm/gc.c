@@ -45,16 +45,11 @@ void lf_gc_step(lfState *state) {
         if (gco->gc_color == LF_GCWHITE) {
             free(gco);
         } else {
+            gco->gc_color = LF_GCWHITE;
             gco->next = new;
             new = gco;
         }
         gco = next;
     }
     state->gc_objects = new;
-}
-
-void lf_gc_unmark(lfValue *v) {
-    if (v->type != LF_STRING && v->type != LF_CLOSURE) return;
-    lfGCObject *header = (lfGCObject *)v->v.string;
-    header->gc_color = LF_GCWHITE;
 }

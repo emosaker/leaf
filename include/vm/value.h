@@ -139,6 +139,5 @@ void lf_value_deleter(const lfValue *value);
 
 /* gc */
 void lf_gc_step(lfState *state);
-void lf_gc_unmark(lfValue *v);
 
 #endif /* LEAF_VALUE_H */

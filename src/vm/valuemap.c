@@ -16,12 +16,8 @@ void lf_valuebucket_deleter(lfValueBucket **bucket) {
         while (current->previous) {
             lfValueBucket *tbf = current;
             current = current->previous;
-            lf_gc_unmark(&tbf->key);
-            lf_gc_unmark(&tbf->value);
             free(tbf);
         }
-        lf_gc_unmark(&current->key);
-        lf_gc_unmark(&current->value);
         free(current);
     }
 }

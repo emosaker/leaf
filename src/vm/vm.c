@@ -59,7 +59,6 @@ void lf_call(lfState *state, int nargs, int nret) {
 
     while (state->top > state->base) {
         lfValue v = lf_pop(state);
-        lf_gc_unmark(&v);
     }
     state->base = old_base;
 
@@ -67,8 +66,6 @@ void lf_call(lfState *state, int nargs, int nret) {
         lf_push(state, ret + i);
     }
     array_delete(&ret);
-
-    lf_gc_step(state);
 }
 
 int lf_run(lfState *state, lfProto *proto) {
@@ -97,7 +94,6 @@ int lf_run(lfState *state, lfProto *proto) {
             case OP_POP:
                 for (size_t i = 0; i < INS_E(ins); i++) {
                     lfValue *v = --state->top;
-                    lf_gc_unmark(v);
                 }
                 break;
 
