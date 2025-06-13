@@ -6,8 +6,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "compiler/bytecode.h"
-#include "compiler/compile.h"
 #include "lib/ansi.h"
 #include "vm/load.h"
 #include "vm/value.h"
