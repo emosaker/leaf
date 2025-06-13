@@ -682,6 +682,7 @@ size_t get_line_number(lfParseCtx *ctx) {
         line_start -= 1;
     }
 
+    return line;
 }
 
 lfNode *parse_fn(lfParseCtx *ctx) {
