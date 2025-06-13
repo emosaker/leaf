@@ -178,6 +178,9 @@ int lf_run(lfState *state, lfProto *proto) {
 
             case OP_CALL: {
                 lf_call(state, INS_A(ins), INS_B(ins));
+                if (state->errored) {
+                    return 0;
+                }
             } break;
 
             case OP_CL: {
