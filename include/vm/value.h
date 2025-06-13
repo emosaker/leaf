@@ -13,6 +13,18 @@
 #include "compiler/bytecode.h"
 #include "lib/array.h"
 
+#define lf_string(VALUE) ((lfString *)((VALUE)->v.gco))
+#define lf_cl(VALUE) ((lfClosure *)((VALUE)->v.gco))
+
+typedef enum lfValueType {
+    LF_NULL,
+    LF_INT,
+    LF_BOOL,
+    /* GC objects */
+    LF_CLOSURE,
+    LF_STRING,
+} lfValueType;
+
 typedef enum lfGCColor {
     LF_GCBLACK,
     LF_GCWHITE,
@@ -21,7 +33,8 @@ typedef enum lfGCColor {
 
 #define LF_GCHEADER \
     struct lfGCObject *next; \
-    lfGCColor gc_color;
+    lfGCColor gc_color; \
+    lfValueType t;
 
 typedef struct lfGCObject {
     LF_GCHEADER;
@@ -77,21 +90,12 @@ typedef struct lfString {
     char string[];
 } lfString;
 
-typedef enum lfValueType {
-    LF_NULL,
-    LF_INT,
-    LF_STRING,
-    LF_BOOL,
-    LF_CLOSURE
-} lfValueType;
-
 typedef struct lfValue {
     lfValueType type;
     union {
         uint64_t integer;
         bool boolean;
-        lfString *string;
-        lfClosure *cl;
+        lfGCObject *gco;
     } v;
 } lfValue;
 
@@ -135,7 +139,6 @@ void lf_newlfcl(lfState *state, lfProto *proto);
 
 const char *lf_typeof(const lfValue *value);
 void lf_printvalue(const lfValue *value);
-void lf_value_deleter(const lfValue *value);
 
 /* gc */
 void lf_gc_step(lfState *state);

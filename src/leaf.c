@@ -9,6 +9,7 @@
 #include "compiler/bytecode.h"
 #include "compiler/compile.h"
 #include "lib/ansi.h"
+#include "vm/load.h"
 #include "vm/value.h"
 #include "vm/vm.h"
 
@@ -41,18 +42,15 @@ int main(int argc, const char **argv) {
     }
     buffer[sz] = 0;
 
-    lfProto *chunk = lf_compile(buffer, file);
-    if (chunk == NULL) {
+    lfState *state = lf_state_create();
+    if (!lf_load(state, buffer, file)) {
         free(buffer);
+        lf_state_delete(state);
         return 1;
     }
-
-    lfState *state = lf_state_create();
-    lf_newlfcl(state, chunk);
     lf_call(state, 0, 0);
 
     lf_state_delete(state);
-    lf_proto_deleter(&chunk);
     free(buffer);
     return 0;
 }

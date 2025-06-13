@@ -4,12 +4,25 @@
 
 #include <stdio.h>
 
+#include "compiler/bytecode.h"
 #include "vm/value.h"
 
 void mark(lfValue *v) {
     if (v->type != LF_STRING && v->type != LF_CLOSURE) return;
-    lfGCObject *header = (lfGCObject *)v->v.string;
+    lfGCObject *header = v->v.gco;
     header->gc_color = LF_GCBLACK;
+}
+
+void delete(lfGCObject *gco) {
+    switch (gco->t) {
+        case LF_CLOSURE:
+            if (!((lfClosure *)gco)->is_c)
+                lf_proto_deleter(&((lfClosure *)gco)->f.lf.proto);
+            break;
+        default:
+            break;
+    }
+    free(gco);
 }
 
 void lf_gc_step(lfState *state) {
@@ -23,16 +36,10 @@ void lf_gc_step(lfState *state) {
     if (state->globals != NULL) {
         for (size_t i = 0; i < size(&state->globals); i++) {
             lfValueBucket *current = state->globals[i];
-            if (current) {
-                while (current->next != NULL) current = current->next;
-                while (current->previous) {
-                    lfValueBucket *tbm = current;
-                    current = current->previous;
-                    mark(&tbm->key);
-                    mark(&tbm->value);
-                }
+            while (current) {
                 mark(&current->key);
                 mark(&current->value);
+                current = current->next;
             }
         }
     }
@@ -43,7 +50,7 @@ void lf_gc_step(lfState *state) {
     while (gco) {
         lfGCObject *next = gco->next;
         if (gco->gc_color == LF_GCWHITE) {
-            free(gco);
+            delete(gco);
         } else {
             gco->gc_color = LF_GCWHITE;
             gco->next = new;

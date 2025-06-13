@@ -95,6 +95,7 @@ typedef struct lfProto {
 } lfProto;
 
 void lf_proto_deleter(lfProto **proto);
+lfProto *lf_proto_clone(lfProto *proto);
 
 #define INS_OP(INSTRUCTION) (((INSTRUCTION) >> 0)  & 0xFF)
 #define INS_A(INSTRUCTION)  (((INSTRUCTION) >> 8)  & 0xFF)

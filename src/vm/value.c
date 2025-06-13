@@ -45,6 +45,7 @@ void lf_pushint(lfState *state, uint64_t value) {
 
 lfString *alloc_string(lfState *state, size_t length) {
     lfString *s = malloc(sizeof(lfString) + length + 1);
+    s->t = LF_STRING;
     s->length = length;
     s->gc_color = LF_GCWHITE;
     s->next = state->gc_objects;
@@ -59,7 +60,7 @@ void lf_pushstring(lfState *state, char *value, size_t length) {
     s->string[length] = 0;
     *state->top++ = (lfValue) {
         .type = LF_STRING,
-        .v.string = s
+        .v.gco = (lfGCObject *)s
     };
 }
 
@@ -99,6 +100,7 @@ void lf_setupval(lfState *state, int index) {
 
 lfClosure *alloc_ccl(lfState *state) {
     lfClosure *cl = malloc(sizeof(lfClosure));
+    cl->t = LF_CLOSURE;
     cl->gc_color = LF_GCWHITE;
     cl->next = state->gc_objects;
     state->gc_objects = (lfGCObject *)cl;
@@ -112,12 +114,13 @@ void lf_newccl(lfState *state, lfccl func) {
     cl->f.c.func = func;
     *state->top++ = (lfValue) {
         .type = LF_CLOSURE,
-        .v.cl = cl
+        .v.gco = (lfGCObject *)cl
     };
 }
 
 lfClosure *alloc_lfcl(lfState *state, size_t nupvalues) {
     lfClosure *cl = malloc(sizeof(lfClosure) + sizeof(lfValue *) * nupvalues);
+    cl->t = LF_CLOSURE;
     cl->gc_color = LF_GCWHITE;
     cl->next = state->gc_objects;
     state->gc_objects = (lfGCObject *)cl;
@@ -128,10 +131,10 @@ void lf_newlfcl(lfState *state, lfProto *proto) {
     LF_CHECKTOP(state);
     lfClosure *cl = alloc_lfcl(state, proto->nupvalues);
     cl->is_c = false;
-    cl->f.lf.proto = proto;
+    cl->f.lf.proto = lf_proto_clone(proto);
     *state->top++ = (lfValue) {
         .type = LF_CLOSURE,
-        .v.cl = cl
+        .v.gco = (lfGCObject *)cl
     };
 }
 
@@ -154,28 +157,13 @@ void lf_printvalue(const lfValue *value) {
             printf("%ld", value->v.integer);
             break;
         case LF_STRING:
-            printf("%s", value->v.string->string);
+            printf("%s", lf_string(value)->string);
             break;
         case LF_BOOL:
             printf("%s", value->v.boolean ? "true" : "false");
             break;
         case LF_CLOSURE:
             printf("closure");
-            break;
-    }
-}
-
-void lf_value_deleter(const lfValue *value) {
-    switch (value->type) {
-        case LF_STRING:
-            free(value->v.string);
-            break;
-        case LF_CLOSURE:
-            if (!value->v.cl->is_c)
-                free(value->v.cl->f.lf.proto);
-            free(value->v.cl);
-            break;
-        default:
             break;
     }
 }

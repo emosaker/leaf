@@ -32,7 +32,7 @@ void lf_call(lfState *state, int nargs, int nret) {
         lf_push(state, args + i);
     }
 
-    lfClosure *cl = func.v.cl;
+    lfClosure *cl = lf_cl(&func);
     if (cl->is_c) {
         int returned = cl->f.c.func(state);
         if (returned == 0 && nret == 1) {
@@ -125,10 +125,10 @@ int lf_run(lfState *state, lfProto *proto) {
                         if (rhs.type != LF_STRING) {
                             goto unsupported;
                         }
-                        size_t len = lhs.v.string->length + rhs.v.string->length;
+                        size_t len = lf_string(&lhs)->length + lf_string(&rhs)->length;
                         char *concatenated = malloc(len + 1);
-                        memcpy(concatenated, lhs.v.string->string, lhs.v.string->length);
-                        memcpy(concatenated + lhs.v.string->length, rhs.v.string->string, rhs.v.string->length);
+                        memcpy(concatenated, lf_string(&lhs)->string, lf_string(&lhs)->length);
+                        memcpy(concatenated + lf_string(&lhs)->length, lf_string(&rhs)->string, lf_string(&rhs)->length);
                         concatenated[len] = 0;
                         lf_pushstring(state, concatenated, len);
                         free(concatenated);
@@ -137,8 +137,6 @@ int lf_run(lfState *state, lfProto *proto) {
                     default:
                         lf_errorf(state, "unsupported types for addition: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
                 }
-                lf_value_deleter(&lhs);
-                lf_value_deleter(&rhs);
             } break;
             case OP_EQ: {
                 lfValue rhs = lf_pop(state);
@@ -154,17 +152,15 @@ int lf_run(lfState *state, lfProto *proto) {
                     case LF_STRING:
                         if (rhs.type != LF_STRING) {
                             lf_pushbool(state, false);
-                        } else if (lhs.v.string->length != rhs.v.string->length) {
+                        } else if (lf_string(&lhs)->length != lf_string(&rhs)->length) {
                             lf_pushbool(state, false);
                         } else {
-                            lf_pushbool(state, !strncmp(lhs.v.string->string, rhs.v.string->string, lhs.v.string->length));
+                            lf_pushbool(state, !strncmp(lf_string(&lhs)->string, lf_string(&rhs)->string, lf_string(&lhs)->length));
                         }
                         break;
                     default:
                         lf_pushbool(state, false);
                 }
-                lf_value_deleter(&lhs);
-                lf_value_deleter(&rhs);
             } break;
 
             case OP_JMP:
@@ -197,7 +193,7 @@ int lf_run(lfState *state, lfProto *proto) {
                 } else {
                     capture = state->upvalues[INS_D(ins)];
                 }
-                cl->v.cl->f.lf.upvalues[captured++] = capture;
+                lf_cl(cl)->f.lf.upvalues[captured++] = capture;
             } break;
             case OP_RET: {
                 return INS_E(ins);

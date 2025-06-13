@@ -543,6 +543,36 @@ lfProto *lf_compile(const char *source, const char *file) {
     return main;
 }
 
+lfProto *lf_proto_clone(lfProto *proto) {
+    lfProto *new = malloc(sizeof(lfProto));
+    new->strings = malloc(sizeof(char *) * proto->szstrings);
+    new->szstrings = proto->szstrings;
+    new->ints = malloc(sizeof(uint64_t) * proto->szints);
+    new->szints = proto->szints;
+    new->protos = malloc(sizeof(lfProto *) * proto->szprotos);
+    new->szprotos = proto->szprotos;
+    new->code = malloc(sizeof(uint32_t) * proto->szcode);
+    new->szcode = proto->szcode;
+    new->name = proto->name;
+    new->nargs = proto->nargs;
+    new->nupvalues = proto->nupvalues;
+
+    for (size_t i = 0; i < proto->szstrings; i++) {
+        char *clone = malloc(strlen(proto->strings[i]) + 1);
+        memcpy(clone, proto->strings[i], strlen(proto->strings[i]) + 1);
+        new->strings[i] = clone;
+    }
+
+    for (size_t i = 0; i < proto->szprotos; i++) {
+        new->protos[i] = lf_proto_clone(proto->protos[i]);
+    }
+
+    memcpy(new->ints, proto->ints, proto->szints * sizeof(uint64_t));
+    memcpy(new->code, proto->code, proto->szcode * sizeof(uint32_t));
+
+    return new;
+}
+
 void lf_proto_deleter(lfProto **proto) {
     for (size_t i = 0; i < (*proto)->szprotos; i++)
         lf_proto_deleter((*proto)->protos + i);

@@ -38,15 +38,15 @@ size_t lf_valuemap_compute_hash(const lfValue *value) {
             return value->v.boolean;
         case LF_STRING: {
             size_t hash = 0;
-            for (size_t i = 0; i < value->v.string->length; i++) {
-                hash = (31 * hash + value->v.string->string[i]);
+            for (size_t i = 0; i < lf_string(value)->length; i++) {
+                hash = (31 * hash + lf_string(value)->string[i]);
             }
             return hash;
         }
         case LF_NULL:
             return 0;
         case LF_CLOSURE:
-            return (size_t)value->v.cl->f.lf.proto; /* func for C closures */
+            return (size_t)lf_cl(value)->f.lf.proto; /* func for C closures */
     }
 }
 
@@ -60,11 +60,11 @@ bool lf_valuemap_compare_values(const lfValue *lhs, const lfValue *rhs) {
         case LF_BOOL:
             return rhs->v.boolean == lhs->v.boolean;
         case LF_STRING:
-            return lhs->v.string->length == rhs->v.string->length && !strncmp(rhs->v.string->string, lhs->v.string->string, lhs->v.string->length);
+            return lf_string(lhs)->length == lf_string(rhs)->length && !strncmp(lf_string(rhs)->string, lf_string(lhs)->string, lf_string(lhs)->length);
         case LF_NULL:
             return true;
         case LF_CLOSURE:
-            return lhs->v.cl->f.lf.proto == rhs->v.cl->f.lf.proto;
+            return lf_cl(lhs)->f.lf.proto == lf_cl(rhs)->f.lf.proto;
     }
 }
 
