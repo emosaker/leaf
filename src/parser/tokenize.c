@@ -13,15 +13,25 @@
 #include "lib/error.h"
 
 const char *keywords[] = {
-    "var", "const", "ref", "fn", "class", "if", "while", "for", "continue", "break", "return", NULL
+    /* var decl */
+    "var", "const", "ref",
+    /* functions and classes */
+    "fn", "class", "struct",
+    /* control flow */
+    "if", "else", "while", "for", "continue", "break", "return",
+    /* imports */
+    "include",
+    NULL
 };
 
-void token_deleter(const lfToken *tok) {
+void lf_token_deleter(lfToken *tok) {
     if (tok->value != NULL) {
         if (tok->type == TT_STRING) {
             array_delete(&tok->value);
+            tok->value = NULL;
         } else {
             free(tok->value);
+            tok->value = NULL;
         }
     }
 }
@@ -69,7 +79,7 @@ static inline void token_singledoubledouble(const char *source, size_t *index, l
 }
 
 lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
-    lfArray(lfToken) tokens = array_new(lfToken);
+    lfArray(lfToken) tokens = array_new(lfToken, lf_token_deleter);
 
     size_t i = 0;
     while (source[i]) {
@@ -83,12 +93,39 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                 token_singledouble(source, &i, &tokens, TT_ADD, TT_ADDASSIGN, '=');
                 break;
             case '-':
-                token_singledouble(source, &i, &tokens, TT_SUB, TT_SUBASSIGN, '=');
+                token_singledoubledouble(source, &i, &tokens, TT_SUB, TT_SUBASSIGN, TT_ARROW, '=', '>');
                 break;
             case '*':
                 token_singledouble(source, &i, &tokens, TT_MUL, TT_MULASSIGN, '=');
                 break;
             case '/':
+                if (source[i + 1] == '/') {
+                    while (source[i] && source[i] != '\n') {
+                        i += 1;
+                    }
+                    if (source[i] == '\n') {
+                        i += 1;
+                    }
+                    break;
+                } else if (source[i + 1] == '*') {
+                    size_t start = i;
+                    i += 2;
+                    bool closed = false;
+                    while (source[i]) {
+                        if (source[i] && source[i] == '*' && source[i + 1] && source[i + 1] == '/') {
+                            closed = true;
+                            i += 2;
+                            break;
+                        }
+                        i += 1;
+                    }
+                    if (!closed) {
+                        lf_error_print(file, source, start, start + 2, "unclosed '/*'");
+                        array_delete(&tokens);
+                        return NULL;
+                    }
+                    break;
+                }
                 token_singledouble(source, &i, &tokens, TT_DIV, TT_DIVASSIGN, '=');
                 break;
 
@@ -162,7 +199,7 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                         i += 1;
                     }
                     if (dots > 1) {
-                        error_print(file, source, start, i, "malformed number");
+                        lf_error_print(file, source, start, i, "malformed number");
                         array_delete(&tokens);
                         return NULL;
                     }
@@ -210,7 +247,7 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                     char opener = source[i];
                     i += 1;
                     lfArray(char) buffer = array_new(char);
-                    while (source[i] && source[i] != opener) {
+                    while (source[i] && source[i] != '\n' && source[i] != opener) {
                         if (source[i] == '\\') {
                             switch (source[i + 1]) {
                                 case 'a':
@@ -245,7 +282,10 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                                     break;
                                 case 'x':
                                     if (!source[i + 2] || !source[i + 3]) {
-                                        error_print(file, source, i, i + 1, "incomplete hexadecimal escape");
+                                        lf_error_print(file, source, i, i + 1, "incomplete hexadecimal escape");
+                                        array_delete(&buffer);
+                                        array_delete(&tokens);
+                                        return NULL;
                                     }
                                     char tmp[3] = { source[i + 2], source[i + 3], 0 };
                                     char v = strtol(tmp, NULL, 16);
@@ -253,8 +293,10 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                                     i += 2;
                                     break;
                                 default:
-                                    error_print(file, source, i, i + 1, "unknown escape sequence");
-                                    break;
+                                    lf_error_print(file, source, i, i + 1, "unknown escape sequence");
+                                    array_delete(&buffer);
+                                    array_delete(&tokens);
+                                    return NULL;
                             }
                             i += 2;
                         } else {
@@ -263,7 +305,7 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                         }
                     }
                     if (source[i] != opener) {
-                        error_print(file, source, start, i, "unterminated string literal");
+                        lf_error_print(file, source, start, i, "unterminated string literal");
                         array_delete(&buffer);
                         array_delete(&tokens);
                         return NULL;
@@ -283,5 +325,6 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
 
     array_push(&tokens, token_single(TT_EOF, i - 1));
 
+    deleter(&tokens) = NULL;
     return tokens;
 }

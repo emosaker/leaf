@@ -63,7 +63,8 @@ typedef enum lfTokenType {
 
     /* misc */
     TT_DOT,
-    TT_COMMA
+    TT_COMMA,
+    TT_ARROW
 } lfTokenType;
 
 typedef struct lfToken {
@@ -73,6 +74,6 @@ typedef struct lfToken {
     size_t idx_end;
 } lfToken;
 
-void token_deleter(const lfToken *tok);
+void lf_token_deleter(lfToken *tok);
 
 #endif /* LEAF_TOKEN_H */

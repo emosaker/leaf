@@ -6,9 +6,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "compiler/compile.h"
-#include "debug/proto.h"
 #include "lib/ansi.h"
+#include "vm/load.h"
+#include "vm/value.h"
+#include "vm/vm.h"
 
 #define FATAL FG_RED BOLD "fatal: " RESET
 
@@ -39,15 +40,15 @@ int main(int argc, const char **argv) {
     }
     buffer[sz] = 0;
 
-    lfProto *chunk = lf_compile(buffer, file);
-    if (chunk == NULL) {
+    lfState *state = lf_state_create();
+    if (!lf_load(state, buffer, file)) {
         free(buffer);
+        lf_state_delete(state);
         return 1;
     }
+    lf_call(state, 0, 0);
 
-    lf_proto_print(chunk);
-
-    lf_proto_deleter(&chunk);
+    lf_state_delete(state);
     free(buffer);
     return 0;
 }

@@ -10,11 +10,11 @@
 void error_underline_code(const char *source, size_t idx_start, size_t idx_end) {
     /* find start of the line with the error */
     size_t line_start = idx_start;
-    while ((!source[line_start] && line_start > 0) || source[line_start] == '\n') {
-        line_start -= 1;
-    }
     while (line_start > 0 && source[line_start] && source[line_start] != '\n') {
         line_start -= 1;
+    }
+    if (source[line_start] == '\n' && source[line_start + 1]) {
+        line_start += 1;
     }
 
     size_t i = line_start;
@@ -49,16 +49,13 @@ void error_underline_code(const char *source, size_t idx_start, size_t idx_end) 
     }
 }
 
-void error_print(const char *file, const char *source, size_t idx_start, size_t idx_end, const char *message) {
+void lf_error_print(const char *file, const char *source, size_t idx_start, size_t idx_end, const char *message) {
     size_t line_start = idx_start;
-    while ((!source[line_start] && line_start > 0) || source[line_start] == '\n') {
-        line_start -= 1;
-    }
     while (line_start > 0 && source[line_start] && source[line_start] != '\n') {
         line_start -= 1;
     }
 
-    size_t column = idx_start - line_start + 1;
+    size_t column = idx_start - line_start + 1 - (source[line_start] == '\n' ? 1 : 0);
     size_t line = 1;
     while (line_start > 0 && source[line_start]) {
         if (source[line_start] == '\n') {
