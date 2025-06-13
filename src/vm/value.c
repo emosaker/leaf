@@ -163,7 +163,15 @@ void lf_printvalue(const lfValue *value) {
             printf("%s", value->v.boolean ? "true" : "false");
             break;
         case LF_CLOSURE:
-            printf("closure");
+            if (!lf_cl(value)->is_c) {
+                lfProto *p = lf_cl(value)->f.lf.proto;
+                if (p->name)
+                    printf("<leaf closure '%s'>", p->strings[p->name - 1]);
+                else
+                    printf("<anonymous leaf closure>");
+            } else {
+                printf("<anonymous c closure>");
+            }
             break;
     }
 }
