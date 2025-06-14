@@ -7,34 +7,37 @@
 #include "compiler/compile.h"
 #include "compiler/bytecodebuilder.h"
 
-void emit_insn_abc(lfCompilerCtx *ctx, lfOpCode op, uint8_t a, uint8_t b, uint8_t c) {
+void emit_ins_abc(lfCompilerCtx *ctx, lfOpCode op, uint8_t a, uint8_t b, uint8_t c, size_t lineno) {
     array_push(&ctx->current, op);
     array_push(&ctx->current, a);
     array_push(&ctx->current, b);
     array_push(&ctx->current, c);
+    array_push(&ctx->linenumbers, lineno);
 }
 
-void emit_insn_ad(lfCompilerCtx *ctx, lfOpCode op, uint8_t a, uint16_t d) {
+void emit_ins_ad(lfCompilerCtx *ctx, lfOpCode op, uint8_t a, uint16_t d, size_t lineno) {
     array_push(&ctx->current, op);
     array_push(&ctx->current, a);
     array_push(&ctx->current, (d >> 0) & 0xFF);
     array_push(&ctx->current, (d >> 8) & 0xFF);
+    array_push(&ctx->linenumbers, lineno);
 }
 
-void emit_insn_e(lfCompilerCtx *ctx, lfOpCode op, uint32_t e) {
+void emit_ins_e(lfCompilerCtx *ctx, lfOpCode op, uint32_t e, size_t lineno) {
     array_push(&ctx->current, op);
     emit_u24(ctx, e);
+    array_push(&ctx->linenumbers, lineno);
 }
 
-void emit_insn_e_at(lfCompilerCtx *ctx, lfOpCode op, uint32_t e, size_t idx) {
+void emit_ins_e_at(lfCompilerCtx *ctx, lfOpCode op, uint32_t e, size_t idx, size_t lineno) {
     size_t curr = length(&ctx->current);
     length(&ctx->current) = idx;
-    emit_insn_e(ctx, op, e);
+    emit_ins_e(ctx, op, e, lineno);
     length(&ctx->current) = curr;
 }
 
-void emit_op(lfCompilerCtx *ctx, lfOpCode op) {
-    emit_insn_e(ctx, op, 0);
+void emit_op(lfCompilerCtx *ctx, lfOpCode op, size_t lineno) {
+    emit_ins_e(ctx, op, 0, lineno);
 }
 
 void emit_u24(lfCompilerCtx *ctx, uint32_t value) {

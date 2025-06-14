@@ -32,6 +32,18 @@ typedef struct lfParseCtxState {
     lfToken old;
 } lfParseCtxState;
 
+size_t get_lineno(lfParseCtx *ctx) {
+    size_t line = 1;
+    size_t idx = ctx->current.idx_start;
+    while (idx > 0 && ctx->source[idx]) {
+        if (ctx->source[idx] == '\n') {
+            line += 1;
+        }
+        idx -= 1;
+    }
+    return line;
+}
+
 void advance(lfParseCtx *ctx) {
     ctx->current_idx += 1;
     ctx->current = ctx->tokens[ctx->current_idx];
@@ -242,6 +254,7 @@ lfNode *parse_literal(lfParseCtx *ctx) {
         lfLiteralNode *literal = alloc(lfLiteralNode);
         literal->type = ctx->current.type == TT_INT ? NT_INT : ctx->current.type == TT_FLOAT ? NT_FLOAT : NT_STRING;
         literal->value = ctx->current;
+        literal->lineno = get_lineno(ctx);
         advance(ctx);
         return (lfNode *)literal;
     } else if (ctx->current.type == TT_LPAREN) {
@@ -268,9 +281,11 @@ lfNode *parse_literal(lfParseCtx *ctx) {
         unop->type = NT_UNARYOP;
         unop->op = op;
         unop->value = expr;
+        unop->lineno = expr->lineno;
         return (lfNode *)unop;
     } else if (ctx->current.type == TT_IDENTIFIER) {
         lfToken var = ctx->current;
+        size_t lineno = get_lineno(ctx);
         advance(ctx);
         if (ctx->current.type == TT_ASSIGN) {
             advance(ctx);
@@ -279,15 +294,18 @@ lfNode *parse_literal(lfParseCtx *ctx) {
             assign->type = NT_ASSIGN;
             assign->var = var;
             assign->value = value;
+            assign->lineno = lineno;
             return (lfNode *)assign;
         } else {
             lfVarAccessNode *access = alloc(lfVarAccessNode);
             access->type = NT_VARACCESS;
             access->var = var;
+            access->lineno = lineno;
             return (lfNode *)access;
         }
     } else if (ctx->current.type == TT_LBRACE) {
         lfToken lbrace = ctx->current;
+        size_t lineno = get_lineno(ctx);
         bool is_arr = false;
         bool is_map = false;
         lfArray(lfNode *) keys = array_new(lfNode *, lf_node_deleter);
@@ -346,12 +364,14 @@ lfNode *parse_literal(lfParseCtx *ctx) {
             map->type = NT_MAP;
             map->keys = keys;
             map->values = values;
+            map->lineno = lineno;
             return (lfNode *)map;
         } else { /* empty declerations are assumed to be arrays */
             array_delete(&keys);
             lfArrayNode *array = alloc(lfArrayNode);
             array->type = NT_ARRAY;
             array->values = values;
+            array->lineno = lineno;
             return (lfNode *)array;
         }
     }
@@ -386,6 +406,7 @@ lfNode *parse_subscriptive(lfParseCtx *ctx) {
                 sub->type = NT_SUBSCRIBE;
                 sub->object = object;
                 sub->index = index;
+                sub->lineno = object->lineno;
                 object = (lfNode *)sub;
             } else {
                 advance(ctx);
@@ -399,6 +420,7 @@ lfNode *parse_subscriptive(lfParseCtx *ctx) {
                 assign->object = object;
                 assign->key = index;
                 assign->value = value;
+                assign->lineno = object->lineno;
                 return (lfNode *)assign;
             }
         } else if (ctx->current.type == TT_DOT) {
@@ -417,6 +439,7 @@ lfNode *parse_subscriptive(lfParseCtx *ctx) {
                 sub->type = NT_SUBSCRIBE;
                 sub->object = object;
                 sub->index = (lfNode *)index;
+                sub->lineno = object->lineno;
                 object = (lfNode *)sub;
             } else {
                 advance(ctx);
@@ -431,6 +454,7 @@ lfNode *parse_subscriptive(lfParseCtx *ctx) {
                 assign->object = object;
                 assign->key = (lfNode *)index;
                 assign->value = value;
+                assign->lineno = object->lineno;
                 return (lfNode *)assign;
             }
         } else {
@@ -463,6 +487,7 @@ lfNode *parse_subscriptive(lfParseCtx *ctx) {
             call->type = NT_CALL;
             call->func = object;
             call->args = args;
+            call->lineno = object->lineno;
             object = (lfNode *)call;
         }
     }
@@ -486,6 +511,7 @@ lfNode *parse_bitwise(lfParseCtx *ctx) {
         binop->lhs = lhs;
         binop->rhs = rhs;
         binop->op = op;
+        binop->lineno = lhs->lineno;
         lhs = (lfNode *)binop;
     }
     return lhs;
@@ -507,6 +533,7 @@ lfNode *parse_multiplicative(lfParseCtx *ctx) {
         binop->lhs = lhs;
         binop->rhs = rhs;
         binop->op = op;
+        binop->lineno = lhs->lineno;
         lhs = (lfNode *)binop;
     }
     return lhs;
@@ -528,6 +555,7 @@ lfNode *parse_additive(lfParseCtx *ctx) {
         binop->lhs = lhs;
         binop->rhs = rhs;
         binop->op = op;
+        binop->lineno = lhs->lineno;
         lhs = (lfNode *)binop;
     }
     return lhs;
@@ -553,6 +581,7 @@ lfNode *parse_comparative(lfParseCtx *ctx) {
         binop->lhs = lhs;
         binop->rhs = rhs;
         binop->op = op;
+        binop->lineno = lhs->lineno;
         lhs = (lfNode *)binop;
     }
     return lhs;
@@ -567,6 +596,7 @@ lfNode *parse_expr(lfParseCtx *ctx) {
 }
 
 lfNode *parse_vardecl(lfParseCtx *ctx, bool allow_ref) {
+    size_t lineno = get_lineno(ctx);
     if (ctx->current.type != TT_KEYWORD) {
         parse_error_here(ctx, "expected 'var', 'const', or 'ref'");
         return NULL;
@@ -613,6 +643,7 @@ lfNode *parse_vardecl(lfParseCtx *ctx, bool allow_ref) {
         decl->initializer = initializer;
         decl->is_ref = is_ref;
         decl->vartype = type;
+        decl->lineno = lineno;
         return (lfNode *)decl;
     }
 
@@ -672,24 +703,23 @@ bool parse_generics(lfParseCtx *ctx, lfArray(lfToken) *type_names, lfArray(lfTyp
 }
 
 lfNode *parse_fn(lfParseCtx *ctx) {
+    size_t lineno = get_lineno(ctx);
     if (ctx->current.type != TT_KEYWORD || strcmp(ctx->current.value, "fn")) {
         parse_error_here(ctx, "expected 'fn'");
         return NULL;
     }
+    advance(ctx);
+    if (ctx->current.type != TT_IDENTIFIER) {
+        parse_error_here(ctx, "expected function name");
+        return NULL;
+    }
+    lfToken name = ctx->current;
     advance(ctx);
     lfArray(lfToken) type_names = array_new(lfToken, lf_token_deleter);
     lfArray(lfType *) types = array_new(lfType *, lf_type_deleter);
     if (!parse_generics(ctx, &type_names, &types)) {
         return NULL;
     }
-    if (ctx->current.type != TT_IDENTIFIER) {
-        parse_error_here(ctx, "expected function name");
-        array_delete(&type_names);
-        array_delete(&types);
-        return NULL;
-    }
-    lfToken name = ctx->current;
-    advance(ctx);
     lfToken lparen = ctx->current;
     if (ctx->current.type != TT_LPAREN) {
         parse_error_here(ctx, "expected '('");
@@ -779,10 +809,12 @@ lfNode *parse_fn(lfParseCtx *ctx) {
     f->return_type = type;
     f->type_names = type_names;
     f->types = types;
+    f->lineno = lineno;
     return (lfNode *)f;
 }
 
 lfNode *parse_compound(lfParseCtx *ctx) {
+    size_t lineno = get_lineno(ctx);
     if (ctx->current.type != TT_LBRACE) {
         parse_error_here(ctx, "expected '{'");
         return NULL;
@@ -791,6 +823,7 @@ lfNode *parse_compound(lfParseCtx *ctx) {
     advance(ctx);
     lfCompoundNode *compound = alloc(lfCompoundNode);
     compound->type = NT_COMPOUND;
+    compound->lineno = lineno;
     compound->statements = array_new(lfNode *, lf_node_deleter);
     while (ctx->current.type != TT_RBRACE) {
         lfNode *statement = parse_statement(ctx);
@@ -806,6 +839,7 @@ lfNode *parse_compound(lfParseCtx *ctx) {
 }
 
 lfNode *parse_statement(lfParseCtx *ctx) {
+    size_t lineno = get_lineno(ctx);
     if (ctx->current.type == TT_KEYWORD) {
         if (!strcmp(ctx->current.value, "var") || !strcmp(ctx->current.value, "const")) {
             return parse_vardecl(ctx, false);
@@ -835,6 +869,7 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             ifnode->body = body;
             ifnode->else_body = else_body;
             ifnode->condition = condition;
+            ifnode->lineno = lineno;
             return (lfNode *)ifnode;
         } else if (!strcmp(ctx->current.value, "while")) {
             advance(ctx);
@@ -851,6 +886,7 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             whilenode->type = NT_WHILE;
             whilenode->body = body;
             whilenode->condition = condition;
+            whilenode->lineno = lineno;
             return (lfNode *)whilenode;
         } else if (!strcmp(ctx->current.value, "fn")) {
             return parse_fn(ctx);
@@ -864,6 +900,7 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             lfReturnNode *ret = alloc(lfReturnNode);
             ret->type = NT_RETURN;
             ret->value = expr;
+            ret->lineno = lineno;
             return (lfNode *)ret;
         } else if (!strcmp(ctx->current.value, "class")) {
             advance(ctx);
@@ -906,6 +943,7 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             cls->type = NT_CLASS;
             cls->name = name;
             cls->body = body;
+            cls->lineno = lineno;
             return (lfNode *)cls;
         } else if (!strcmp(ctx->current.value, "include")) {
             advance(ctx);
@@ -930,6 +968,7 @@ lfNode *parse_statement(lfParseCtx *ctx) {
             lfImportNode *import = alloc(lfImportNode);
             import->type = NT_IMPORT;
             import->path = path;
+            import->lineno = lineno;
             return (lfNode *)import;
         }
     } else if (ctx->current.type == TT_LBRACKET) {

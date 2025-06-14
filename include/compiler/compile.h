@@ -24,6 +24,7 @@ typedef struct lfCompilerCtx {
     lfArray(char *) strings;
     lfArray(uint64_t) ints;
     lfArray(uint8_t) current;
+    lfArray(size_t) linenumbers;
     lfVariableMap scope;
     lfArray(lfStackFrame *) fnstack;
 } lfCompilerCtx;

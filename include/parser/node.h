@@ -58,8 +58,12 @@ typedef enum lfTypeType {
     VT_ANY /* for empty generics, like fn<T> ... where T is any */
 } lfTypeType;
 
+#define LF_NODE_HEADER \
+    lfNodeType type; \
+    size_t lineno;
+
 typedef struct lfNode {
-    lfNodeType type;
+    LF_NODE_HEADER;
 } lfNode;
 
 typedef struct lfType {
@@ -97,59 +101,59 @@ typedef struct lfFuncType {
 /* nodes */
 
 typedef struct lfLiteralNode {
-    lfNodeType type;
+    LF_NODE_HEADER;
     lfToken value;
 } lfLiteralNode;
 
 typedef struct lfUnaryOpNode {
-    lfNodeType type;
+    LF_NODE_HEADER;
     lfToken op;
     lfNode *value;
 } lfUnaryOpNode;
 
 typedef struct lfBinaryOpNode {
-    lfNodeType type;
+    LF_NODE_HEADER;
     lfToken op;
     lfNode *lhs;
     lfNode *rhs;
 } lfBinaryOpNode;
 
 typedef struct lfVarAccessNode {
-    lfNodeType type;
+    LF_NODE_HEADER;
     lfToken var;
 } lfVarAccessNode;
 
 typedef struct lfSubscriptionNode {
-    lfNodeType type;
+    LF_NODE_HEADER;
     lfNode *object;
     lfNode *index;
 } lfSubscriptionNode;
 
 typedef struct lfCallNode {
-    lfNodeType type;
+    LF_NODE_HEADER;
     lfNode *func;
     lfArray(lfNode *) args;
 } lfCallNode;
 
 typedef struct lfArrayNode {
-    lfNodeType type;
+    LF_NODE_HEADER;
     lfArray(lfNode *) values;
 } lfArrayNode;
 
 typedef struct lfMapNode {
-    lfNodeType type;
+    LF_NODE_HEADER;
     lfArray(lfNode *) keys;
     lfArray(lfNode *) values;
 } lfMapNode;
 
 typedef struct lfAssignNode {
-    lfNodeType type;
+    LF_NODE_HEADER;
     lfToken var;
     lfNode *value;
 } lfAssignNode;
 
 typedef struct lfObjectAssignNode {
-    lfNodeType type;
+    LF_NODE_HEADER;
     lfNode *object;
     lfNode *key;
     lfNode *value;
@@ -158,7 +162,7 @@ typedef struct lfObjectAssignNode {
 /* statements */
 
 typedef struct lfVarDeclNode {
-    lfNodeType type;
+    LF_NODE_HEADER;
     lfToken name;
     lfNode *initializer;
     bool is_const;
@@ -167,20 +171,20 @@ typedef struct lfVarDeclNode {
 } lfVarDeclNode;
 
 typedef struct lfIfNode {
-    lfNodeType type;
+    LF_NODE_HEADER;
     lfNode *condition;
     lfNode *body;
     lfNode *else_body;
 } lfIfNode;
 
 typedef struct lfWhileNode {
-    lfNodeType type;
+    LF_NODE_HEADER;
     lfNode *condition;
     lfNode *body;
 } lfWhileNode;
 
 typedef struct lfFunctionNode {
-    lfNodeType type;
+    LF_NODE_HEADER;
     lfToken name;
     lfArray(lfVarDeclNode *) params;
     lfArray(lfNode *) body;
@@ -191,23 +195,23 @@ typedef struct lfFunctionNode {
 } lfFunctionNode;
 
 typedef struct lfReturnNode {
-    lfNodeType type;
+    LF_NODE_HEADER;
     lfNode *value;
 } lfReturnNode;
 
 typedef struct lfCompoundNode {
-    lfNodeType type;
+    LF_NODE_HEADER;
     lfArray(lfNode *) statements;
 } lfCompoundNode;
 
 typedef struct lfClassNode {
-    lfNodeType type;
+    LF_NODE_HEADER;
     lfToken name;
     lfArray(lfNode *) body;
 } lfClassNode;
 
 typedef struct lfImportNode {
-    lfNodeType type;
+    LF_NODE_HEADER;
     lfArray(lfToken) path;
 } lfImportNode;
 

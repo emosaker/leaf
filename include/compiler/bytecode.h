@@ -87,6 +87,8 @@ typedef struct lfProto {
     double *floats;
     size_t szprotos;
     struct lfProto **protos;
+    size_t szlinenumbers;
+    size_t *linenumbers;
 
     int nupvalues;
     int nargs;

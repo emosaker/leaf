@@ -34,7 +34,7 @@ bool getupvalue(lfCompilerCtx *ctx, char *key, uint32_t *out) {
         }
         if (i == 1) return false;
     }
-    /* match is now the index of the stack frame, match_idx is the indef of the upvalue */
+    /* match is now the index of the stack frame, match_idx is the index of the upvalue */
     /* check if the upvalue is present already */
     bool found = false;
     size_t capture = 0;
@@ -94,7 +94,7 @@ bool nodiscard(lfCompilerCtx *ctx, lfNode *node) {
 
 bool visit_string(lfCompilerCtx *ctx, lfLiteralNode *node) {
     if (ctx->discarded) return true;
-    emit_insn_e(ctx, OP_PUSHS, new_string(ctx, node->value.value, strlen(node->value.value)));
+    emit_ins_e(ctx, OP_PUSHS, new_string(ctx, node->value.value, strlen(node->value.value)), node->lineno);
     ctx->top += 1;
     return true;
 }
@@ -103,9 +103,9 @@ bool visit_int(lfCompilerCtx *ctx, lfLiteralNode *node) {
     if (ctx->discarded) return true;
     uint64_t value = strtoll(node->value.value, NULL, 10);
     if (value >= 0xFFFFFF) { /* 2^24 */
-        emit_insn_e(ctx, OP_PUSHLI, new_u64(ctx, value));
+        emit_ins_e(ctx, OP_PUSHLI, new_u64(ctx, value), node->lineno);
     } else {
-        emit_insn_e(ctx, OP_PUSHSI, value);
+        emit_ins_e(ctx, OP_PUSHSI, value, node->lineno);
     }
     ctx->top += 1;
     return true;
@@ -115,22 +115,22 @@ bool visit_binop(lfCompilerCtx *ctx, lfBinaryOpNode *node) {
     if (!nodiscard(ctx, node->lhs)) return false;
     if (!nodiscard(ctx, node->rhs)) return false;
     switch (node->op.type) {
-        case TT_ADD: emit_op(ctx, OP_ADD); break;
-        case TT_SUB: emit_op(ctx, OP_SUB); break;
-        case TT_MUL: emit_op(ctx, OP_MUL); break;
-        case TT_DIV: emit_op(ctx, OP_DIV); break;
-        case TT_EQ: emit_op(ctx, OP_EQ); break;
-        case TT_NE: emit_op(ctx, OP_NE); break;
-        case TT_LT: emit_op(ctx, OP_LT); break;
-        case TT_GT: emit_op(ctx, OP_GT); break;
-        case TT_LE: emit_op(ctx, OP_LE); break;
-        case TT_BAND: emit_op(ctx, OP_BAND); break;
-        case TT_BOR: emit_op(ctx, OP_BOR); break;
-        case TT_BXOR: emit_op(ctx, OP_BXOR); break;
-        case TT_LSHIFT: emit_op(ctx, OP_BLSH); break;
-        case TT_RSHIFT: emit_op(ctx, OP_BRSH); break;
-        case TT_AND: emit_op(ctx, OP_AND); break;
-        case TT_OR: emit_op(ctx, OP_OR); break;
+        case TT_ADD: emit_op(ctx, OP_ADD, node->lineno); break;
+        case TT_SUB: emit_op(ctx, OP_SUB, node->lineno); break;
+        case TT_MUL: emit_op(ctx, OP_MUL, node->lineno); break;
+        case TT_DIV: emit_op(ctx, OP_DIV, node->lineno); break;
+        case TT_EQ: emit_op(ctx, OP_EQ, node->lineno); break;
+        case TT_NE: emit_op(ctx, OP_NE, node->lineno); break;
+        case TT_LT: emit_op(ctx, OP_LT, node->lineno); break;
+        case TT_GT: emit_op(ctx, OP_GT, node->lineno); break;
+        case TT_LE: emit_op(ctx, OP_LE, node->lineno); break;
+        case TT_BAND: emit_op(ctx, OP_BAND, node->lineno); break;
+        case TT_BOR: emit_op(ctx, OP_BOR, node->lineno); break;
+        case TT_BXOR: emit_op(ctx, OP_BXOR, node->lineno); break;
+        case TT_LSHIFT: emit_op(ctx, OP_BLSH, node->lineno); break;
+        case TT_RSHIFT: emit_op(ctx, OP_BRSH, node->lineno); break;
+        case TT_AND: emit_op(ctx, OP_AND, node->lineno); break;
+        case TT_OR: emit_op(ctx, OP_OR, node->lineno); break;
         default: /* unreachable for any AST produced by the parser */
             return false;
     }
@@ -142,8 +142,8 @@ bool visit_binop(lfCompilerCtx *ctx, lfBinaryOpNode *node) {
 bool visit_unop(lfCompilerCtx *ctx, lfUnaryOpNode *node) {
     if (!nodiscard(ctx, node->value)) return false;
     switch (node->op.type) {
-        case TT_SUB: emit_op(ctx, OP_NEG); break;
-        case TT_NOT: emit_op(ctx, OP_NOT); break;
+        case TT_SUB: emit_op(ctx, OP_NEG, node->lineno); break;
+        case TT_NOT: emit_op(ctx, OP_NOT, node->lineno); break;
         default: /* unreachable for any AST produced by the parser */
             return false;
     }
@@ -161,7 +161,7 @@ bool visit_vardecl(lfCompilerCtx *ctx, lfVarDeclNode *node) {
         if (!nodiscard(ctx, node->initializer))
             return false;
     } else {
-        emit_op(ctx, OP_PUSHNULL);
+        emit_op(ctx, OP_PUSHNULL, node->lineno);
         ctx->top += 1;
     }
 
@@ -179,11 +179,11 @@ bool visit_varaccess(lfCompilerCtx *ctx, lfVarAccessNode *node) {
     lfVariable var;
     uint32_t uvindex;
     if (lf_variablemap_lookup(&ctx->scope, node->var.value, &var)) {
-        emit_insn_e(ctx, OP_DUP, var.stack_offset);
+        emit_ins_e(ctx, OP_DUP, var.stack_offset, node->lineno);
     } else if (getupvalue(ctx, node->var.value, &uvindex)) {
-        emit_insn_e(ctx, OP_GETUPVAL, uvindex);
+        emit_ins_e(ctx, OP_GETUPVAL, uvindex, node->lineno);
     } else {
-        emit_insn_e(ctx, OP_GETGLOBAL, new_string(ctx, node->var.value, strlen(node->var.value)));
+        emit_ins_e(ctx, OP_GETGLOBAL, new_string(ctx, node->var.value, strlen(node->var.value)), node->lineno);
     }
     ctx->top += 1;
     return true;
@@ -193,7 +193,7 @@ bool visit_array(lfCompilerCtx *ctx, lfArrayNode *node) {
     for (size_t i = 0; i < length(&node->values); i++)
         if (!nodiscard(ctx, node->values[i]))
             return false;
-    emit_insn_e(ctx, OP_NEWARR, length(&node->values));
+    emit_ins_e(ctx, OP_NEWARR, length(&node->values), node->lineno);
     ctx->top -= length(&node->values) - 1;
     return true;
 }
@@ -205,7 +205,7 @@ bool visit_map(lfCompilerCtx *ctx, lfMapNode *node) {
         if (!nodiscard(ctx, node->values[i]))
             return false;
     }
-    emit_insn_e(ctx, OP_NEWMAP, length(&node->values));
+    emit_ins_e(ctx, OP_NEWMAP, length(&node->values), node->lineno);
     ctx->top -= length(&node->values) * 2 - 1;
     return true;
 }
@@ -213,7 +213,7 @@ bool visit_map(lfCompilerCtx *ctx, lfMapNode *node) {
 bool visit_subscribe(lfCompilerCtx *ctx, lfSubscriptionNode *node) {
     if (!nodiscard(ctx, node->object)) return false;
     if (!nodiscard(ctx, node->index)) return false;
-    emit_op(ctx, OP_INDEX);
+    emit_op(ctx, OP_INDEX, node->lineno);
     ctx->top -= 1;
     return true;
 }
@@ -227,11 +227,11 @@ bool visit_assign(lfCompilerCtx *ctx, lfAssignNode *node) {
             lf_error_print(ctx->file, ctx->source, node->var.idx_start, node->var.idx_end, "cannot assign to const");
             return false;
         }
-        emit_insn_e(ctx, OP_ASSIGN, index.stack_offset);
+        emit_ins_e(ctx, OP_ASSIGN, index.stack_offset, node->lineno);
     } else if (getupvalue(ctx, node->var.value, &uvindex)) {
-        emit_insn_e(ctx, OP_SETUPVAL, uvindex);
+        emit_ins_e(ctx, OP_SETUPVAL, uvindex, node->lineno);
     } else {
-        emit_insn_e(ctx, OP_SETGLOBAL, new_string(ctx, node->var.value, strlen(node->var.value)));
+        emit_ins_e(ctx, OP_SETGLOBAL, new_string(ctx, node->var.value, strlen(node->var.value)), node->lineno);
     }
     ctx->top -= 1;
     return true;
@@ -241,7 +241,7 @@ bool visit_objassign(lfCompilerCtx *ctx, lfObjectAssignNode *node) {
     if (!nodiscard(ctx, node->object)) return false;
     if (!nodiscard(ctx, node->key)) return false;
     if (!nodiscard(ctx, node->value)) return false;
-    emit_op(ctx, OP_SET);
+    emit_op(ctx, OP_SET, node->lineno);
     ctx->top -= 3;
     return true;
 }
@@ -249,17 +249,17 @@ bool visit_objassign(lfCompilerCtx *ctx, lfObjectAssignNode *node) {
 bool visit_if(lfCompilerCtx *ctx, lfIfNode *node) {
     if (!nodiscard(ctx, node->condition)) return false;
     size_t idx = length(&ctx->current);
-    emit_op(ctx, OP_NOP); /* replaced later */
+    emit_op(ctx, OP_NOP, node->lineno); /* replaced later */
     ctx->top -= 1; /* condition is popped */
     if (!visit(ctx, node->body)) return false;
     size_t curr = length(&ctx->current);
-    emit_insn_e_at(ctx, OP_JMPIFNOT, (curr - idx) - 4 + (node->else_body != NULL ? 4 : 0), idx);
+    emit_ins_e_at(ctx, OP_JMPIFNOT, (curr - idx) - 4 + (node->else_body != NULL ? 4 : 0), idx, node->lineno);
     if (node->else_body != NULL) {
         idx = length(&ctx->current);
-        emit_op(ctx, OP_NOP); /* replaced later */
+        emit_op(ctx, OP_NOP, node->lineno); /* replaced later */
         if (!visit(ctx, node->else_body)) return false;
         curr = length(&ctx->current);
-        emit_insn_e_at(ctx, OP_JMP, (curr - idx) - 4, idx);
+        emit_ins_e_at(ctx, OP_JMP, (curr - idx) - 4, idx, node->else_body->lineno);
     }
     return true;
 }
@@ -268,11 +268,11 @@ bool visit_while(lfCompilerCtx *ctx, lfWhileNode *node) {
     size_t start = length(&ctx->current);
     if (!nodiscard(ctx, node->condition)) return false;
     size_t idx = length(&ctx->current);
-    emit_op(ctx, OP_NOP); /* replaced later */
+    emit_op(ctx, OP_NOP, node->lineno); /* replaced later */
     ctx->top -= 1; /* condition is popped */
     if (!visit(ctx, node->body)) return false;
-    emit_insn_e(ctx, OP_JMPBACK, length(&ctx->current) - start);
-    emit_insn_e_at(ctx, OP_JMPIFNOT, length(&ctx->current) - idx - 4, idx);
+    emit_ins_e(ctx, OP_JMPBACK, length(&ctx->current) - start, node->lineno);
+    emit_ins_e_at(ctx, OP_JMPIFNOT, length(&ctx->current) - idx - 4, idx, node->lineno);
     return true;
 }
 
@@ -281,7 +281,7 @@ bool visit_call(lfCompilerCtx *ctx, lfCallNode *node) {
     for (size_t i = 0; i < length(&node->args); i++) {
         if (!nodiscard(ctx, node->args[i])) return false;
     }
-    emit_insn_abc(ctx, OP_CALL, length(&node->args), ctx->discarded ? 0 : 1, 0);
+    emit_ins_abc(ctx, OP_CALL, length(&node->args), ctx->discarded ? 0 : 1, 0, node->lineno);
     ctx->top -= length(&node->args) + (ctx->discarded ? 1 : 0);
     return true;
 }
@@ -291,7 +291,7 @@ bool visit_return(lfCompilerCtx *ctx, lfReturnNode *node) {
         if (!nodiscard(ctx, node->value)) return false;
         ctx->top -= 1;
     }
-    emit_insn_abc(ctx, OP_RET, node->value != 0 ? 1 : 0, 0, 0);
+    emit_ins_abc(ctx, OP_RET, node->value != 0 ? 1 : 0, 0, 0, node->lineno);
     return true;
 }
 
@@ -301,6 +301,7 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
     lfArray(uint64_t) old_ints = ctx->ints;
     lfArray(lfProto *) old_protos = ctx->protos;
     lfArray(char *) old_strings = ctx->strings;
+    lfArray(size_t) old_linenumbers = ctx->linenumbers;
 
     ctx->current = array_new(uint8_t);
     ctx->scope = lf_variablemap_create(256);
@@ -308,6 +309,7 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
     ctx->protos = array_new(lfProto *, lf_proto_deleter);
     ctx->strings = array_new(char *, string_deleter);
     ctx->ints = array_new(uint64_t);
+    ctx->linenumbers = array_new(size_t);
 
     lfStackFrame frame = (lfStackFrame) {
         .scope = ctx->scope,
@@ -326,11 +328,13 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
     for (size_t i = 0; i < length(&node->body); i++)
         if (!visit(ctx, node->body[i])) {
             array_delete(&ctx->current);
+            array_delete(&ctx->linenumbers);
             array_delete(&frame.upvalues);
             array_delete(&frame.scope);
             length(&ctx->fnstack) -= 1;
             /* caller cleans up */
             ctx->current = old_body;
+            ctx->linenumbers = old_linenumbers;
             ctx->scope = ctx->fnstack[length(&ctx->fnstack) - 1]->scope;
             return false;
         }
@@ -345,6 +349,8 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
     func->szstrings = length(&ctx->strings);
     func->ints = malloc(sizeof(uint64_t) * length(&ctx->ints));
     func->szints = length(&ctx->ints);
+    func->linenumbers = malloc(sizeof(size_t) * length(&ctx->linenumbers));
+    func->szlinenumbers = length(&ctx->linenumbers);
     func->nupvalues = length(&frame.upvalues);
     func->nargs = length(&node->params);
 
@@ -352,6 +358,7 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
     memcpy(func->protos, ctx->protos, sizeof(lfProto *) * length(&ctx->protos));
     memcpy(func->strings, ctx->strings, sizeof(char *) * length(&ctx->strings));
     memcpy(func->ints, ctx->ints, sizeof(uint64_t) * length(&ctx->ints));
+    memcpy(func->linenumbers, ctx->linenumbers, sizeof(size_t) * length(&ctx->linenumbers));
 
     deleter(&ctx->strings) = NULL;
     deleter(&ctx->protos) = NULL;
@@ -359,6 +366,7 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
     array_delete(&ctx->protos);
     array_delete(&ctx->ints);
     array_delete(&ctx->current);
+    array_delete(&ctx->linenumbers);
     array_delete(&ctx->fnstack[length(&ctx->fnstack) - 1]->scope);
     length(&ctx->fnstack) -= 1;
 
@@ -368,18 +376,19 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
     ctx->protos = old_protos;
     ctx->strings = old_strings;
     ctx->ints = old_ints;
+    ctx->linenumbers = old_linenumbers;
 
     array_push(&ctx->protos, func);
 
-    emit_insn_e(ctx, OP_CL, length(&ctx->protos) - 1);
+    emit_ins_e(ctx, OP_CL, length(&ctx->protos) - 1, node->lineno);
     for (size_t i = 0; i < length(&frame.upvalues); i++) {
-        emit_insn_ad(ctx, OP_CAPTURE, frame.upvalues[i].by, frame.upvalues[i].index);
+        emit_ins_ad(ctx, OP_CAPTURE, frame.upvalues[i].by, frame.upvalues[i].index, node->lineno);
     }
     array_delete(&frame.upvalues);
 
     lfVariable i;
     if (lf_variablemap_lookup(&ctx->scope, node->name.value, &i)) {
-        emit_insn_e(ctx, OP_ASSIGN, i.stack_offset);
+        emit_ins_e(ctx, OP_ASSIGN, i.stack_offset, node->lineno);
     } else {
         lf_variablemap_insert(&ctx->scope, node->name.value, (lfVariable) {
             .stack_offset = ctx->top,
@@ -392,40 +401,6 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
 }
 
 bool visit_class(lfCompilerCtx *ctx, lfClassNode *node) {
-    bool wasclass = ctx->isclass;
-    ctx->isclass = true;
-    for (size_t i = 0; i < length(&node->body); i++) {
-        switch (node->body[i]->type) {
-            case NT_VARDECL:
-                emit_insn_e(
-                    ctx,
-                    OP_PUSHS,
-                    new_string(
-                        ctx,
-                        ((lfVarDeclNode *)node->body[i])->name.value,
-                        strlen(((lfVarDeclNode *)node->body[i])->name.value)
-                    )
-                );
-                break;
-            case NT_FUNC:
-                emit_insn_e(
-                    ctx,
-                    OP_PUSHS,
-                    new_string(
-                        ctx,
-                        ((lfFunctionNode *)node->body[i])->name.value,
-                        strlen(((lfFunctionNode *)node->body[i])->name.value)
-                    )
-                );
-                break;
-            default: /* unreachable for any AST produced by the parser */
-                return false;
-        }
-        visit(ctx, node->body[i]);
-    }
-
-    emit_insn_e(ctx, OP_PUSHS, new_string(ctx, node->name.value, strlen(node->name.value)));
-    emit_insn_e(ctx, OP_CLS, length(&node->body));
     return true;
 }
 
@@ -438,7 +413,7 @@ bool visit_compound(lfCompilerCtx *ctx, lfCompoundNode *node) {
             return false;
         }
     array_delete(&ctx->scope);
-    if (ctx->top - old_top > 0) emit_insn_e(ctx, OP_POP, ctx->top - old_top);
+    if (ctx->top - old_top > 0) emit_ins_e(ctx, OP_POP, ctx->top - old_top, node->lineno);
     ctx->scope = old;
     ctx->top = old_top;
     ctx->fnstack[length(&ctx->fnstack) - 1]->scope = old;
@@ -486,6 +461,7 @@ lfProto *lf_compile(const char *source, const char *file) {
         .strings = array_new(char *, string_deleter),
         .ints = array_new(uint64_t),
         .current = array_new(uint8_t),
+        .linenumbers = array_new(size_t),
         .scope = lf_variablemap_create(256),
         .fnstack = array_new(lfStackFrame)
     };
@@ -504,6 +480,7 @@ lfProto *lf_compile(const char *source, const char *file) {
         array_delete(&ctx.scope);
         array_delete(&frame.upvalues);
         array_delete(&ctx.fnstack);
+        array_delete(&ctx.linenumbers);
         lf_node_deleter(&ast);
         return NULL;
     }
@@ -518,6 +495,8 @@ lfProto *lf_compile(const char *source, const char *file) {
     main->szstrings = length(&ctx.strings);
     main->ints = malloc(sizeof(uint64_t) * length(&ctx.ints));
     main->szints = length(&ctx.ints);
+    main->linenumbers = malloc(sizeof(size_t) * length(&ctx.linenumbers));
+    main->szlinenumbers = length(&ctx.linenumbers);
     main->nupvalues = 0;
     main->nargs = 0;
 
@@ -525,6 +504,7 @@ lfProto *lf_compile(const char *source, const char *file) {
     memcpy(main->protos, ctx.protos, sizeof(lfProto *) * length(&ctx.protos));
     memcpy(main->strings, ctx.strings, sizeof(char *) * length(&ctx.strings));
     memcpy(main->ints, ctx.ints, sizeof(uint64_t) * length(&ctx.ints));
+    memcpy(main->linenumbers, ctx.linenumbers, sizeof(size_t) * length(&ctx.linenumbers));
 
     if (main->szcode > 0 && INS_OP(main->code[main->szcode - 1]) == OP_POP) {
         main->szcode -= 1;
@@ -539,6 +519,7 @@ lfProto *lf_compile(const char *source, const char *file) {
     array_delete(&ctx.scope);
     array_delete(&frame.upvalues);
     array_delete(&ctx.fnstack);
+    array_delete(&ctx.linenumbers);
     lf_node_deleter(&ast);
     return main;
 }
@@ -553,6 +534,8 @@ lfProto *lf_proto_clone(lfProto *proto) {
     new->szprotos = proto->szprotos;
     new->code = malloc(sizeof(uint32_t) * proto->szcode);
     new->szcode = proto->szcode;
+    new->linenumbers = malloc(sizeof(size_t) * proto->szlinenumbers);
+    new->szlinenumbers = proto->szlinenumbers;
     new->name = proto->name;
     new->nargs = proto->nargs;
     new->nupvalues = proto->nupvalues;
@@ -569,6 +552,7 @@ lfProto *lf_proto_clone(lfProto *proto) {
 
     memcpy(new->ints, proto->ints, proto->szints * sizeof(uint64_t));
     memcpy(new->code, proto->code, proto->szcode * sizeof(uint32_t));
+    memcpy(new->linenumbers, proto->linenumbers, proto->szlinenumbers * sizeof(size_t));
 
     return new;
 }

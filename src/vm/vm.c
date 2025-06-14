@@ -86,9 +86,7 @@ int lf_run(lfState *state, lfProto *proto) {
                 lf_push(state, state->base + INS_E(ins));
                 break;
             case OP_POP:
-                for (size_t i = 0; i < INS_E(ins); i++) {
-                    lfValue *v = --state->top;
-                }
+                state->top -= INS_E(ins);
                 break;
 
             case OP_GETGLOBAL:
