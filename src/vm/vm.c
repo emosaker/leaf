@@ -105,13 +105,13 @@ int lf_run(lfState *state, lfProto *proto) {
                 lfValue index = lf_pop(state);
                 lfValue object = lf_pop(state);
                 if (object.type != LF_ARRAY) {
-                    lf_errorf(state, "attempt to index object of type %s\n", lf_typeof(&object));
+                    lf_errorf(state, "attempt to index object of type %s", lf_typeof(&object));
                 }
                 if (index.type != LF_INT) {
-                    lf_errorf(state, "attempt to index array with %s\n", lf_typeof(&index));
+                    lf_errorf(state, "attempt to index array with %s", lf_typeof(&index));
                 }
                 if (index.v.integer < 0 || index.v.integer >= length(&lf_array(&object)->values)) {
-                    lf_errorf(state, "index out of bounds\n");
+                    lf_errorf(state, "index out of bounds");
                 }
                 lfValue v = lf_array(&object)->values[index.v.integer];
                 lf_push(state, &v);
