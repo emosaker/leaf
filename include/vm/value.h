@@ -42,9 +42,13 @@ typedef struct lfGCObject {
 } lfGCObject;
 
 #define LF_CHECKTOP(STATE) { \
-    if (((STATE)->top - (STATE)->stack) / 8 >= (STATE)->stack_size) { \
+    if (((STATE)->top - (STATE)->stack) >= (STATE)->stack_size) { \
+        size_t top_off = (STATE)->top - (STATE)->stack; \
+        size_t base_off = (STATE)->base - (STATE)->stack; \
         (STATE)->stack_size *= 2; \
         (STATE)->stack = realloc((STATE)->stack, (STATE)->stack_size * sizeof(lfValue)); \
+        (STATE)->top = (STATE)->stack + top_off; \
+        (STATE)->base = (STATE)->stack + base_off; \
     } \
 }
 

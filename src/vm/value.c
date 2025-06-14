@@ -86,6 +86,7 @@ lfValue lf_pop(lfState *state) {
 }
 
 void lf_push(lfState *state, const lfValue *value) {
+    LF_CHECKTOP(state);
     *state->top++ = *value;
 }
 
@@ -148,6 +149,7 @@ lfValueArray *alloc_array(lfState *state) {
 }
 
 void lf_pusharray(lfState *state, size_t size) {
+    LF_CHECKTOP(state);
     lfValueArray *arr = alloc_array(state);
     arr->values = array_new(lfValue);
     array_reserve(&arr->values, size);

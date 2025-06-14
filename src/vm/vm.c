@@ -103,6 +103,24 @@ int lf_run(lfState *state, lfProto *proto) {
             case OP_SETUPVAL:
                 lf_setupval(state, INS_E(ins));
                 break;
+            case OP_INDEX: {
+                lfValue index = lf_pop(state);
+                lfValue object = lf_pop(state);
+                if (object.type != LF_ARRAY) {
+                    lf_errorf(state, "attempt to index object of type %s\n", lf_typeof(&object));
+                }
+                if (index.type != LF_INT) {
+                    lf_errorf(state, "attempt to index array with %s\n", lf_typeof(&index));
+                }
+                if (index.v.integer < 0 || index.v.integer >= length(&lf_array(&object)->values)) {
+                    lf_errorf(state, "index out of bounds\n");
+                }
+                lfValue v = lf_array(&object)->values[index.v.integer];
+                lf_push(state, &v);
+            } break;
+            case OP_ASSIGN:
+                state->base[INS_E(ins)] = lf_pop(state);
+                break;
 
             case OP_NEWARR: {
                 lfArray(lfValue) values = array_new(lfValue);
@@ -126,12 +144,12 @@ int lf_run(lfState *state, lfProto *proto) {
                         if (rhs.type == LF_INT) {
                             lf_pushint(state, lhs.v.integer + rhs.v.integer);
                         } /* TODO: float handler */ else {
-                            goto unsupported;
+                            goto unsupported_add;
                         }
                         break;
                     case LF_STRING:
                         if (rhs.type != LF_STRING) {
-                            goto unsupported;
+                            goto unsupported_add;
                         }
                         size_t len = lf_string(&lhs)->length + lf_string(&rhs)->length;
                         char *concatenated = malloc(len + 1);
@@ -141,9 +159,25 @@ int lf_run(lfState *state, lfProto *proto) {
                         lf_pushstring(state, concatenated, len);
                         free(concatenated);
                         break;
-                    unsupported:
+                    unsupported_add:
                     default:
                         lf_errorf(state, "unsupported types for addition: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
+                }
+            } break;
+            case OP_LT: {
+                lfValue rhs = lf_pop(state);
+                lfValue lhs = lf_pop(state);
+                switch (lhs.type) {
+                    case LF_INT:
+                        if (rhs.type == LF_INT) {
+                            lf_pushint(state, lhs.v.integer < rhs.v.integer);
+                        } /* TODO: float handler */ else {
+                            goto unsupported_lt;
+                        }
+                        break;
+                    unsupported_lt:
+                    default:
+                        lf_errorf(state, "unsupported types for comparison: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
                 }
             } break;
             case OP_EQ: {
