@@ -13,9 +13,11 @@ lfState *lf_state_create(void) {
     state->base = state->stack;
     state->top = state->stack;
     state->globals = lf_valuemap_create(128);
+    state->strays = lf_valuemap_create(16); /* lfClosure -> lfValueArray map for upvalues that go out of scope */
     state->errored = false;
     state->upvalues = NULL;
     state->gc_objects = NULL;
+    state->gray_objects = NULL;
 
     /* register builtins */
     lf_newccl(state, lf_print);
@@ -27,7 +29,10 @@ lfState *lf_state_create(void) {
 void lf_state_delete(lfState *state) {
     lf_valuemap_delete(&state->globals);
     state->globals = NULL;
-    lf_gc_step(state);
+    lf_valuemap_delete(&state->strays);
+    state->strays = NULL;
+    while (state->gray_objects || state->gc_objects)
+        lf_gc_step(state);
     free(state->stack);
     free(state);
 }

@@ -3,7 +3,6 @@
  */
 
 #include <stdio.h>
-#include <setjmp.h>
 #include <string.h>
 
 #include "vm/vm.h"
@@ -13,15 +12,15 @@
 #include "vm/value.h"
 
 void lf_call(lfState *state, int nargs, int nret) {
-    lfArray(lfValue) args = array_new(lfValue);
-    array_reserve(&args, nargs);
+    lf_pusharray(state, nargs);
+    lfValue argsv = lf_pop(state);
+    lfArray(lfValue) args = lf_array(&argsv)->values;
     length(&args) = nargs;
     for (uint8_t i = 0; i < nargs; i++) {
         args[nargs - i - 1] = lf_pop(state);
     }
     lfValue func = lf_pop(state);
     if (func.type != LF_CLOSURE) {
-        array_delete(&args);
         lf_errorf(state, "attempt to call object of type %s", lf_typeof(&func));
     }
 
@@ -48,10 +47,9 @@ void lf_call(lfState *state, int nargs, int nret) {
         state->upvalues = old_up;
     }
 
-    array_delete(&args);
-
-    lfArray(lfValue) ret = array_new(lfValue);
-    array_reserve(&ret, nret);
+    lf_pusharray(state, nret);
+    lfValue retv = lf_pop(state);
+    lfArray(lfValue) ret = lf_array(&retv)->values;
     length(&ret) = nret;
     for (uint8_t i = 0; i < nret; i++) {
         ret[nret - i - 1] = lf_pop(state);
@@ -65,13 +63,9 @@ void lf_call(lfState *state, int nargs, int nret) {
     for (uint8_t i = 0; i < nret; i++) {
         lf_push(state, ret + i);
     }
-    array_delete(&ret);
 }
 
 int lf_run(lfState *state, lfProto *proto) {
-    if (setjmp(state->error_buf) == 1) {
-        return 0;
-    }
     int captured = 0;
     for (size_t i = 0; i < proto->szcode; i++) {
         uint32_t ins = proto->code[i];
@@ -109,6 +103,20 @@ int lf_run(lfState *state, lfProto *proto) {
             case OP_SETUPVAL:
                 lf_setupval(state, INS_E(ins));
                 break;
+
+            case OP_NEWARR: {
+                lfArray(lfValue) values = array_new(lfValue);
+                array_reserve(&values, INS_E(ins));
+                for (uint32_t i = 0; i < INS_E(ins); i++) {
+                    values[INS_E(ins) - i - 1] = lf_pop(state);
+                }
+                length(&values) = INS_E(ins);
+                lf_pusharray(state, INS_E(ins));
+                lfValueArray *arr = lf_array(state->top - 1);
+                memcpy(arr->values, values, INS_E(ins) * sizeof(lfValue));
+                length(&arr->values) = INS_E(ins);
+                array_delete(&values);
+            } break;
 
             case OP_ADD: {
                 lfValue rhs = lf_pop(state);
@@ -199,6 +207,22 @@ int lf_run(lfState *state, lfProto *proto) {
                 lf_cl(cl)->f.lf.upvalues[captured++] = capture;
             } break;
             case OP_RET: {
+                /* move upvalues that would go out of scope onto the heap */
+                if ((state->top - 1)->type == LF_CLOSURE) {
+                    lfClosure *cl = lf_cl(state->top - 1);
+                    if (!cl->is_c) {
+                        lf_pusharray(state, 0);
+                        lfValue arrv = lf_pop(state);
+                        lfValueArray *arr = lf_array(&arrv);
+                        for (int i = 0; i < cl->f.lf.proto->nupvalues; i++) {
+                            if (cl->f.lf.upvalues[i] < state->base) continue;
+                            array_push(&arr->values, *cl->f.lf.upvalues[i]);
+                            cl->f.lf.upvalues[i] = arr->values + length(&arr->values) - 1;
+                        }
+                        if (length(&arr->values) > 0)
+                            lf_valuemap_insert(&state->strays, state->top - 1, &arrv);
+                    }
+                }
                 return INS_E(ins);
             } break;
         }

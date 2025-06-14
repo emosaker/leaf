@@ -46,7 +46,9 @@ size_t lf_valuemap_compute_hash(const lfValue *value) {
         case LF_NULL:
             return 0;
         case LF_CLOSURE:
-            return (size_t)lf_cl(value)->f.lf.proto; /* func for C closures */
+            return (size_t)lf_cl(value)->f.c.func;
+        default:
+            return 0; /* unhashable for now :( */
     }
 }
 
@@ -64,7 +66,9 @@ bool lf_valuemap_compare_values(const lfValue *lhs, const lfValue *rhs) {
         case LF_NULL:
             return true;
         case LF_CLOSURE:
-            return lf_cl(lhs)->f.lf.proto == lf_cl(rhs)->f.lf.proto;
+            return lf_cl(lhs)->f.c.func == lf_cl(rhs)->f.c.func;
+        default:
+            return false;
     }
 }
 

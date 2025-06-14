@@ -41,6 +41,13 @@ int main(int argc, const char **argv) {
     buffer[sz] = 0;
 
     lfState *state = lf_state_create();
+    if (setjmp(state->error_buf) == 1) {
+        state->base = state->stack;
+        state->top = state->stack;
+        free(buffer);
+        lf_state_delete(state);
+        return 1;
+    }
     if (!lf_load(state, buffer, file)) {
         free(buffer);
         lf_state_delete(state);

@@ -14,6 +14,7 @@
 #include "lib/array.h"
 
 #define lf_string(VALUE) ((lfString *)((VALUE)->v.gco))
+#define lf_array(VALUE) ((lfValueArray *)((VALUE)->v.gco))
 #define lf_cl(VALUE) ((lfClosure *)((VALUE)->v.gco))
 
 typedef enum lfValueType {
@@ -23,12 +24,12 @@ typedef enum lfValueType {
     /* GC objects */
     LF_CLOSURE,
     LF_STRING,
+    LF_ARRAY
 } lfValueType;
 
 typedef enum lfGCColor {
     LF_GCBLACK,
-    LF_GCWHITE,
-    LF_GCGRAY
+    LF_GCWHITE
 } lfGCColor;
 
 #define LF_GCHEADER \
@@ -59,10 +60,12 @@ typedef struct lfState {
     struct lfValue *top;
 
     lfValueMap globals;
+    lfValueMap strays;
 
     struct lfValue **upvalues;
 
-    struct lfGCObject *gc_objects;
+    lfGCObject *gc_objects;
+    lfGCObject *gray_objects;
 
     bool errored;
     jmp_buf error_buf;
@@ -89,6 +92,11 @@ typedef struct lfString {
     size_t length;
     char string[];
 } lfString;
+
+typedef struct lfValueArray {
+    LF_GCHEADER;
+    lfArray(struct lfValue) values;
+} lfValueArray;
 
 typedef struct lfValue {
     lfValueType type;
@@ -128,6 +136,7 @@ void lf_pushint(lfState *state, uint64_t value);
 void lf_pushstring(lfState *state, char *value, size_t length);
 void lf_pushbool(lfState *state, bool value);
 void lf_pushnull(lfState *state);
+void lf_pusharray(lfState *state, size_t size);
 lfValue lf_pop(lfState *state);
 void lf_push(lfState *state, const lfValue *value);
 void lf_getupval(lfState *state, int index);

@@ -138,12 +138,32 @@ void lf_newlfcl(lfState *state, lfProto *proto) {
     };
 }
 
+lfValueArray *alloc_array(lfState *state) {
+    lfValueArray *arr = malloc(sizeof(lfValueArray));
+    arr->t = LF_ARRAY;
+    arr->gc_color = LF_GCWHITE;
+    arr->next = state->gc_objects;
+    state->gc_objects = (lfGCObject *)arr;
+    return arr;
+}
+
+void lf_pusharray(lfState *state, size_t size) {
+    lfValueArray *arr = alloc_array(state);
+    arr->values = array_new(lfValue);
+    array_reserve(&arr->values, size);
+    *state->top++ = (lfValue) {
+        .type = LF_ARRAY,
+        .v.gco = (lfGCObject *)arr
+    };
+}
+
 const char *lf_typeof(const lfValue *value) {
     switch (value->type) {
         case LF_NULL: return "null";
         case LF_INT: return "int";
-        case LF_STRING: return "string";
         case LF_BOOL: return "bool";
+        case LF_STRING: return "string";
+        case LF_ARRAY: return "array";
         case LF_CLOSURE: return "closure";
     }
 }
@@ -156,11 +176,20 @@ void lf_printvalue(const lfValue *value) {
         case LF_INT:
             printf("%ld", value->v.integer);
             break;
+        case LF_BOOL:
+            printf("%s", value->v.boolean ? "true" : "false");
+            break;
         case LF_STRING:
             printf("%s", lf_string(value)->string);
             break;
-        case LF_BOOL:
-            printf("%s", value->v.boolean ? "true" : "false");
+        case LF_ARRAY:
+            printf("{");
+            for (size_t i = 0; i < length(&lf_array(value)->values); i++) {
+                lf_printvalue(lf_array(value)->values + i);
+                if (i < length(&lf_array(value)->values) - 1)
+                    printf(", ");
+            }
+            printf("}");
             break;
         case LF_CLOSURE:
             if (!lf_cl(value)->is_c) {
