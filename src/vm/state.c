@@ -18,9 +18,10 @@ lfState *lf_state_create(void) {
     state->upvalues = NULL;
     state->gc_objects = NULL;
     state->gray_objects = NULL;
+    state->frame = array_new(lfCallFrame);
 
     /* register builtins */
-    lf_newccl(state, lf_print);
+    lf_newccl(state, lf_print, "print");
     lf_setsglobal(state, "print");
 
     return state;
@@ -33,6 +34,7 @@ void lf_state_delete(lfState *state) {
     state->strays = NULL;
     while (state->gray_objects || state->gc_objects)
         lf_gc_step(state);
+    array_delete(&state->frame);
     free(state->stack);
     free(state);
 }

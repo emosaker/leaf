@@ -108,11 +108,12 @@ lfClosure *alloc_ccl(lfState *state) {
     return cl;
 }
 
-void lf_newccl(lfState *state, lfccl func) {
+void lf_newccl(lfState *state, lfccl func, const char *name) {
     LF_CHECKTOP(state);
     lfClosure *cl = alloc_ccl(state);
     cl->is_c = true;
     cl->f.c.func = func;
+    cl->f.c.name = name;
     *state->top++ = (lfValue) {
         .type = LF_CLOSURE,
         .v.gco = (lfGCObject *)cl
@@ -137,6 +138,17 @@ void lf_newlfcl(lfState *state, lfProto *proto) {
         .type = LF_CLOSURE,
         .v.gco = (lfGCObject *)cl
     };
+}
+
+const char *lf_clname(lfClosure *cl) {
+    if (cl->is_c) {
+        return cl->f.c.name != NULL ? cl->f.c.name : "<anonymous>";
+    }
+    lfProto *p = cl->f.lf.proto;
+    if (p->name) {
+        return p->strings[p->name - 1];
+    }
+    return "<anonymous>";
 }
 
 lfValueArray *alloc_array(lfState *state) {
@@ -201,7 +213,11 @@ void lf_printvalue(const lfValue *value) {
                 else
                     printf("<anonymous leaf closure>");
             } else {
-                printf("<anonymous c closure>");
+                if (lf_cl(value)->f.c.name) {
+                    printf("<c closure '%s'>", lf_cl(value)->f.c.name);
+                } else {
+                    printf("<anonymous c closure>");
+                }
             }
             break;
     }

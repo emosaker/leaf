@@ -11,6 +11,23 @@
 #include "vm/error.h"
 #include "vm/value.h"
 
+void save_frame(lfState *state, lfClosure *cl) {
+    lfCallFrame frame = (lfCallFrame) {
+        .base = state->base - state->stack,
+        .top = state->top - state->stack,
+        .cl = cl,
+        .ip = 0
+    };
+    state->base = state->top;
+    array_push(&state->frame, frame);
+}
+
+void restore_frame(lfState *state) {
+    lfCallFrame frame = state->frame[--length(&state->frame)];
+    state->base = state->stack + frame.base;
+    state->top = state->stack + frame.top;
+}
+
 void lf_call(lfState *state, int nargs, int nret) {
     lf_pusharray(state, nargs);
     lfValue argsv = lf_pop(state);
@@ -24,8 +41,7 @@ void lf_call(lfState *state, int nargs, int nret) {
         lf_errorf(state, "attempt to call object of type %s", lf_typeof(&func));
     }
 
-    lfValue *old_base = state->base;
-    state->base = state->top;
+    save_frame(state, lf_cl(&func));
 
     for (uint8_t i = 0; i < nargs; i++) {
         lf_push(state, args + i);
@@ -40,7 +56,7 @@ void lf_call(lfState *state, int nargs, int nret) {
     } else {
         lfValue **old_up = state->upvalues;
         state->upvalues = cl->f.lf.upvalues;
-        int returned = lf_run(state, cl->f.lf.proto);
+        int returned = lf_run(state);
         if (returned == 0 && nret == 1) {
             lf_pushnull(state);
         }
@@ -58,15 +74,17 @@ void lf_call(lfState *state, int nargs, int nret) {
     while (state->top > state->base) {
         lfValue v = lf_pop(state);
     }
-    state->base = old_base;
+
+    restore_frame(state);
 
     for (uint8_t i = 0; i < nret; i++) {
         lf_push(state, ret + i);
     }
 }
 
-int lf_run(lfState *state, lfProto *proto) {
+int lf_run(lfState *state) {
     int captured = 0;
+    lfProto *proto = state->frame[length(&state->frame) - 1].cl->f.lf.proto; /* proto is gotten here instead of passed to ensure that any error thrown by the VM has a lfCallInfo for diagnostics */
     for (size_t i = 0; i < proto->szcode; i++) {
         uint32_t ins = proto->code[i];
         switch (INS_OP(ins)) {
@@ -217,6 +235,7 @@ int lf_run(lfState *state, lfProto *proto) {
             } break;
 
             case OP_CALL: {
+                state->frame[length(&state->frame) - 1].ip = i;
                 lf_call(state, INS_A(ins), INS_B(ins));
                 if (state->errored) {
                     return 0;

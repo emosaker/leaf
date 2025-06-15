@@ -56,10 +56,18 @@ typedef struct lfGCObject {
 
 typedef lfArray(struct lfValueBucket *) lfValueMap;
 
+typedef struct lfCallFrame {
+    struct lfClosure *cl;
+    /* for stack re-allocation */
+    size_t top;
+    size_t base;
+    /* for stack trace */
+    size_t ip;
+} lfCallFrame;
+
 typedef struct lfState {
     size_t stack_size;
     struct lfValue *stack;
-
     struct lfValue *base;
     struct lfValue *top;
 
@@ -70,6 +78,8 @@ typedef struct lfState {
 
     lfGCObject *gc_objects;
     lfGCObject *gray_objects;
+
+    lfArray(lfCallFrame) frame;
 
     bool errored;
     jmp_buf error_buf;
@@ -87,6 +97,7 @@ typedef struct lfClosure {
         } lf;
         struct {
             lfccl func;
+            const char *name;
         } c;
     } f;
 } lfClosure;
@@ -147,8 +158,9 @@ void lf_getupval(lfState *state, int index);
 void lf_setupval(lfState *state, int index);
 
 /* value */
-void lf_newccl(lfState *state, lfccl func);
+void lf_newccl(lfState *state, lfccl func, const char *name);
 void lf_newlfcl(lfState *state, lfProto *proto);
+const char *lf_clname(lfClosure *cl);
 
 const char *lf_typeof(const lfValue *value);
 void lf_printvalue(const lfValue *value);

@@ -16,6 +16,17 @@ void error_jumpout(lfState *state) {
     longjmp(state->error_buf, 1);
 }
 
+void error_print_stack_trace(lfState *state) {
+    printf("traceback:\n");
+    for (size_t i = 0; i < length(&state->frame); i++) {
+        lfCallFrame f = state->frame[i];
+        if (!f.cl->is_c)
+            printf(" -> line %zu, in %s\n", f.cl->f.lf.proto->linenumbers[f.ip], lf_clname(f.cl));
+        else
+            printf(" -> in %s\n", lf_clname(f.cl));
+    }
+}
+
 void lf_errorf(lfState *state, const char *fmt, ...) {
     va_list args1;
     va_start(args1, fmt);
@@ -27,6 +38,8 @@ void lf_errorf(lfState *state, const char *fmt, ...) {
     vsnprintf(buf, length, fmt, args2);
     va_end(args2);
 
+    error_print_stack_trace(state);
+
     printf("runtime error: %s\n", buf);
     free(buf);
 
@@ -34,6 +47,7 @@ void lf_errorf(lfState *state, const char *fmt, ...) {
 }
 
 void lf_error(lfState *state, const char *message) {
+    error_print_stack_trace(state);
     printf("runtime error: %s\n", message);
     error_jumpout(state);
 }

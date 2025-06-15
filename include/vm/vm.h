@@ -5,10 +5,9 @@
 #ifndef LEAF_VM_H
 #define LEAF_VM_H
 
-#include "compiler/bytecode.h"
 #include "vm/value.h"
 
 void lf_call(lfState *state, int nargs, int nret);
-int lf_run(lfState *state, lfProto *proto);
+int lf_run(lfState *state);
 
 #endif /* LEAF_VM_H */

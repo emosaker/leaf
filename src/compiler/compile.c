@@ -566,5 +566,6 @@ void lf_proto_deleter(lfProto **proto) {
     free((*proto)->strings);
     free((*proto)->ints);
     free((*proto)->code);
+    free((*proto)->linenumbers);
     free((*proto));
 }
