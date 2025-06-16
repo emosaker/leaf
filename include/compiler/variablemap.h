@@ -5,7 +5,6 @@
 #ifndef LEAF_VARIABLEMAP_H
 #define LEAF_VARIABLEMAP_H
 
-#include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 

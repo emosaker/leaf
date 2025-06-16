@@ -6,7 +6,6 @@
 #define LEAF_TOKEN_H
 
 #include <stdint.h>
-#include <stdlib.h>
 
 typedef enum lfTokenType {
     TT_EOF,

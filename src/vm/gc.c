@@ -2,8 +2,6 @@
  * This file is part of the leaf programming language
  */
 
-#include <stdio.h>
-
 #include "compiler/bytecode.h"
 #include "lib/array.h"
 #include "vm/value.h"

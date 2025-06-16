@@ -2,7 +2,6 @@
  * This file is part of the leaf programming language
  */
 
-#include <stdio.h>
 #include <string.h>
 
 #include "vm/vm.h"
