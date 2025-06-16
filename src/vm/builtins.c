@@ -8,7 +8,7 @@
 #include "vm/builtins.h"
 
 int lf_print(lfState *state) {
-    size_t nargs = LF_STACKSIZE(state);
+    int nargs = LF_STACKSIZE(state);
     for (int i = 0; i < nargs; i++) {
         lf_printvalue(state->base + i);
         if (i < nargs - 1)

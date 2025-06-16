@@ -22,10 +22,11 @@
 #define deleter(ARR) header(ARR).deleter
 
 typedef struct lfArrayHeader {
-    size_t size;
-    size_t length;
+    int size;
+    int length;
     size_t typesize;
     void (*deleter)(void *element);
+    size_t pad;
 } lfArrayHeader;
 
 static inline void *_array_new(size_t typesize) {
@@ -45,7 +46,7 @@ static inline void *_array_new_deleter(void *array, void (*new_deleter)(void *el
 }
 
 #define array_reserve(ARR, S) {                                                                                                   \
-    size_t s = (S);                                                                                                               \
+    int s = (S);                                                                                                                  \
     if (size(ARR) < s) {                                                                                                          \
         *(ARR) = (void *)((uint8_t *)realloc(&header(ARR), sizeof(lfArrayHeader) + (s * typesize(ARR))) + sizeof(lfArrayHeader)); \
         size(ARR) = s;                                                                                                            \
@@ -59,13 +60,13 @@ static inline void *_array_new_deleter(void *array, void (*new_deleter)(void *el
     (*(ARR))[length(ARR)++] = ELEMENT;                         \
 }
 
-#define array_delete(ARR) {                        \
-    if (deleter(ARR)) {                            \
-        for (size_t i = 0; i < length(ARR); i++) { \
-            deleter(ARR)((*ARR) + i);              \
-        }                                          \
-    }                                              \
-    free(&header(ARR));                            \
+#define array_delete(ARR) {                     \
+    if (deleter(ARR)) {                         \
+        for (int i = 0; i < length(ARR); i++) { \
+            deleter(ARR)((*ARR) + i);           \
+        }                                       \
+    }                                           \
+    free(&header(ARR));                         \
 }
 
 #endif /* LEAF_ARRAY_H */

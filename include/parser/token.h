@@ -70,8 +70,8 @@ typedef enum lfTokenType {
 typedef struct lfToken {
     lfTokenType type;
     char *value;
-    size_t idx_start;
-    size_t idx_end;
+    int idx_start;
+    int idx_end;
 } lfToken;
 
 void lf_token_deleter(lfToken *tok);

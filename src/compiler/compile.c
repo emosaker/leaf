@@ -24,9 +24,9 @@ void string_deleter(char **string) {
 
 bool getupvalue(lfCompilerCtx *ctx, char *key, uint32_t *out) {
     /* find the upvalue stack and index */
-    size_t match = 0;
+    int match = 0;
     lfVariable match_var;
-    for (size_t i = length(&ctx->fnstack); i > 0; i--) {
+    for (int i = length(&ctx->fnstack); i > 0; i--) {
         lfStackFrame *frame = ctx->fnstack[i - 1];
         if (lf_variablemap_lookup(&frame->scope, key, &match_var)) {
             match = i - 1;
@@ -37,8 +37,8 @@ bool getupvalue(lfCompilerCtx *ctx, char *key, uint32_t *out) {
     /* match is now the index of the stack frame, match_idx is the index of the upvalue */
     /* check if the upvalue is present already */
     bool found = false;
-    size_t capture = 0;
-    for (size_t i = 0; i < length(&ctx->fnstack[match + 1]->upvalues); i++) {
+    int capture = 0;
+    for (int i = 0; i < length(&ctx->fnstack[match + 1]->upvalues); i++) {
         lfUpValue upval = ctx->fnstack[match + 1]->upvalues[i];
         if (upval.index == match_var.stack_offset) {
             found = true;
@@ -56,10 +56,10 @@ bool getupvalue(lfCompilerCtx *ctx, char *key, uint32_t *out) {
         capture = length(&ctx->fnstack[match + 1]->upvalues) - 1;
     }
     /* pass the upvalue down by ref until we reach the current stack frame */
-    for (size_t i = match + 2; i < length(&ctx->fnstack); i++) {
+    for (int i = match + 2; i < length(&ctx->fnstack); i++) {
         /* check if a ref is already present */
         found = false;
-        for (size_t j = 0; j < length(&ctx->fnstack[i]->upvalues); j++) {
+        for (int j = 0; j < length(&ctx->fnstack[i]->upvalues); j++) {
             lfUpValue upval = ctx->fnstack[i]->upvalues[j];
             if (upval.index == capture) {
                 found = true;
@@ -190,7 +190,7 @@ bool visit_varaccess(lfCompilerCtx *ctx, lfVarAccessNode *node) {
 }
 
 bool visit_array(lfCompilerCtx *ctx, lfArrayNode *node) {
-    for (size_t i = 0; i < length(&node->values); i++)
+    for (int i = 0; i < length(&node->values); i++)
         if (!nodiscard(ctx, node->values[i]))
             return false;
     emit_ins_e(ctx, OP_NEWARR, length(&node->values), node->lineno);
@@ -199,7 +199,7 @@ bool visit_array(lfCompilerCtx *ctx, lfArrayNode *node) {
 }
 
 bool visit_map(lfCompilerCtx *ctx, lfMapNode *node) {
-    for (size_t i = 0; i < length(&node->values); i++) {
+    for (int i = 0; i < length(&node->values); i++) {
         if (!nodiscard(ctx, node->keys[i]))
             return false;
         if (!nodiscard(ctx, node->values[i]))
@@ -248,11 +248,11 @@ bool visit_objassign(lfCompilerCtx *ctx, lfObjectAssignNode *node) {
 
 bool visit_if(lfCompilerCtx *ctx, lfIfNode *node) {
     if (!nodiscard(ctx, node->condition)) return false;
-    size_t idx = length(&ctx->current);
+    int idx = length(&ctx->current);
     emit_op(ctx, OP_NOP, node->lineno); /* replaced later */
     ctx->top -= 1; /* condition is popped */
     if (!visit(ctx, node->body)) return false;
-    size_t curr = length(&ctx->current);
+    int curr = length(&ctx->current);
     emit_ins_e_at(ctx, OP_JMPIFNOT, (curr - idx) - 4 + (node->else_body != NULL ? 4 : 0), idx, node->lineno);
     if (node->else_body != NULL) {
         idx = length(&ctx->current);
@@ -265,9 +265,9 @@ bool visit_if(lfCompilerCtx *ctx, lfIfNode *node) {
 }
 
 bool visit_while(lfCompilerCtx *ctx, lfWhileNode *node) {
-    size_t start = length(&ctx->current);
+    int start = length(&ctx->current);
     if (!nodiscard(ctx, node->condition)) return false;
-    size_t idx = length(&ctx->current);
+    int idx = length(&ctx->current);
     emit_op(ctx, OP_NOP, node->lineno); /* replaced later */
     ctx->top -= 1; /* condition is popped */
     if (!visit(ctx, node->body)) return false;
@@ -278,7 +278,7 @@ bool visit_while(lfCompilerCtx *ctx, lfWhileNode *node) {
 
 bool visit_call(lfCompilerCtx *ctx, lfCallNode *node) {
     if (!nodiscard(ctx, node->func)) return false;
-    for (size_t i = 0; i < length(&node->args); i++) {
+    for (int i = 0; i < length(&node->args); i++) {
         if (!nodiscard(ctx, node->args[i])) return false;
     }
     emit_ins_abc(ctx, OP_CALL, length(&node->args), ctx->discarded ? 0 : 1, 0, node->lineno);
@@ -297,11 +297,11 @@ bool visit_return(lfCompilerCtx *ctx, lfReturnNode *node) {
 
 bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
     lfArray(uint8_t) old_body = ctx->current;
-    size_t old_top = ctx->top;
+    int old_top = ctx->top;
     lfArray(uint64_t) old_ints = ctx->ints;
     lfArray(lfProto *) old_protos = ctx->protos;
     lfArray(char *) old_strings = ctx->strings;
-    lfArray(size_t) old_linenumbers = ctx->linenumbers;
+    lfArray(int) old_linenumbers = ctx->linenumbers;
 
     ctx->current = array_new(uint8_t);
     ctx->scope = lf_variablemap_create(256);
@@ -309,7 +309,7 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
     ctx->protos = array_new(lfProto *, lf_proto_deleter);
     ctx->strings = array_new(char *, string_deleter);
     ctx->ints = array_new(uint64_t);
-    ctx->linenumbers = array_new(size_t);
+    ctx->linenumbers = array_new(int);
 
     lfStackFrame frame = (lfStackFrame) {
         .scope = ctx->scope,
@@ -317,7 +317,7 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
     };
     array_push(&ctx->fnstack, &frame);
 
-    for (size_t i = 0; i < length(&node->params); i++) {
+    for (int i = 0; i < length(&node->params); i++) {
         lf_variablemap_insert(&ctx->scope, node->params[i]->name.value, (lfVariable) {
             .stack_offset = i,
             .is_const = node->params[i]->is_const,
@@ -325,7 +325,7 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
         });
     }
 
-    for (size_t i = 0; i < length(&node->body); i++)
+    for (int i = 0; i < length(&node->body); i++)
         if (!visit(ctx, node->body[i])) {
             array_delete(&ctx->current);
             array_delete(&ctx->linenumbers);
@@ -349,16 +349,16 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
     func->szstrings = length(&ctx->strings);
     func->ints = malloc(sizeof(uint64_t) * length(&ctx->ints));
     func->szints = length(&ctx->ints);
-    func->linenumbers = malloc(sizeof(size_t) * length(&ctx->linenumbers));
+    func->linenumbers = malloc(sizeof(int) * length(&ctx->linenumbers));
     func->szlinenumbers = length(&ctx->linenumbers);
-    func->nupvalues = length(&frame.upvalues);
-    func->nargs = length(&node->params);
+    func->szupvalues = length(&frame.upvalues);
+    func->szargs = length(&node->params);
 
     memcpy(func->code, ctx->current, length(&ctx->current));
     memcpy(func->protos, ctx->protos, sizeof(lfProto *) * length(&ctx->protos));
     memcpy(func->strings, ctx->strings, sizeof(char *) * length(&ctx->strings));
     memcpy(func->ints, ctx->ints, sizeof(uint64_t) * length(&ctx->ints));
-    memcpy(func->linenumbers, ctx->linenumbers, sizeof(size_t) * length(&ctx->linenumbers));
+    memcpy(func->linenumbers, ctx->linenumbers, sizeof(int) * length(&ctx->linenumbers));
 
     deleter(&ctx->strings) = NULL;
     deleter(&ctx->protos) = NULL;
@@ -381,7 +381,7 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
     array_push(&ctx->protos, func);
 
     emit_ins_e(ctx, OP_CL, length(&ctx->protos) - 1, node->lineno);
-    for (size_t i = 0; i < length(&frame.upvalues); i++) {
+    for (int i = 0; i < length(&frame.upvalues); i++) {
         emit_ins_ad(ctx, OP_CAPTURE, frame.upvalues[i].by, frame.upvalues[i].index, node->lineno);
     }
     array_delete(&frame.upvalues);
@@ -406,8 +406,8 @@ bool visit_class(lfCompilerCtx *ctx, lfClassNode *node) {
 
 bool visit_compound(lfCompilerCtx *ctx, lfCompoundNode *node) {
     lfVariableMap old = lf_variablemap_clone(&ctx->scope);
-    size_t old_top = ctx->top;
-    for (size_t i = 0; i < length(&node->statements); i++)
+    int old_top = ctx->top;
+    for (int i = 0; i < length(&node->statements); i++)
         if (!visit(ctx, node->statements[i])) {
             array_delete(&old);
             return false;
@@ -461,7 +461,7 @@ lfProto *lf_compile(const char *source, const char *file) {
         .strings = array_new(char *, string_deleter),
         .ints = array_new(uint64_t),
         .current = array_new(uint8_t),
-        .linenumbers = array_new(size_t),
+        .linenumbers = array_new(int),
         .scope = lf_variablemap_create(256),
         .fnstack = array_new(lfStackFrame)
     };
@@ -495,16 +495,16 @@ lfProto *lf_compile(const char *source, const char *file) {
     main->szstrings = length(&ctx.strings);
     main->ints = malloc(sizeof(uint64_t) * length(&ctx.ints));
     main->szints = length(&ctx.ints);
-    main->linenumbers = malloc(sizeof(size_t) * length(&ctx.linenumbers));
+    main->linenumbers = malloc(sizeof(int) * length(&ctx.linenumbers));
     main->szlinenumbers = length(&ctx.linenumbers);
-    main->nupvalues = 0;
-    main->nargs = 0;
+    main->szupvalues = 0;
+    main->szargs = 0;
 
     memcpy(main->code, ctx.current, length(&ctx.current));
     memcpy(main->protos, ctx.protos, sizeof(lfProto *) * length(&ctx.protos));
     memcpy(main->strings, ctx.strings, sizeof(char *) * length(&ctx.strings));
     memcpy(main->ints, ctx.ints, sizeof(uint64_t) * length(&ctx.ints));
-    memcpy(main->linenumbers, ctx.linenumbers, sizeof(size_t) * length(&ctx.linenumbers));
+    memcpy(main->linenumbers, ctx.linenumbers, sizeof(int) * length(&ctx.linenumbers));
 
     if (main->szcode > 0 && INS_OP(main->code[main->szcode - 1]) == OP_POP) {
         main->szcode -= 1;
@@ -534,33 +534,33 @@ lfProto *lf_proto_clone(lfProto *proto) {
     new->szprotos = proto->szprotos;
     new->code = malloc(sizeof(uint32_t) * proto->szcode);
     new->szcode = proto->szcode;
-    new->linenumbers = malloc(sizeof(size_t) * proto->szlinenumbers);
+    new->linenumbers = malloc(sizeof(int) * proto->szlinenumbers);
     new->szlinenumbers = proto->szlinenumbers;
     new->name = proto->name;
-    new->nargs = proto->nargs;
-    new->nupvalues = proto->nupvalues;
+    new->szargs = proto->szargs;
+    new->szupvalues = proto->szupvalues;
 
-    for (size_t i = 0; i < proto->szstrings; i++) {
+    for (int i = 0; i < proto->szstrings; i++) {
         char *clone = malloc(strlen(proto->strings[i]) + 1);
         memcpy(clone, proto->strings[i], strlen(proto->strings[i]) + 1);
         new->strings[i] = clone;
     }
 
-    for (size_t i = 0; i < proto->szprotos; i++) {
+    for (int i = 0; i < proto->szprotos; i++) {
         new->protos[i] = lf_proto_clone(proto->protos[i]);
     }
 
     memcpy(new->ints, proto->ints, proto->szints * sizeof(uint64_t));
     memcpy(new->code, proto->code, proto->szcode * sizeof(uint32_t));
-    memcpy(new->linenumbers, proto->linenumbers, proto->szlinenumbers * sizeof(size_t));
+    memcpy(new->linenumbers, proto->linenumbers, proto->szlinenumbers * sizeof(int));
 
     return new;
 }
 
 void lf_proto_deleter(lfProto **proto) {
-    for (size_t i = 0; i < (*proto)->szprotos; i++)
+    for (int i = 0; i < (*proto)->szprotos; i++)
         lf_proto_deleter((*proto)->protos + i);
-    for (size_t i = 0; i < (*proto)->szstrings; i++)
+    for (int i = 0; i < (*proto)->szstrings; i++)
         string_deleter((*proto)->strings + i);
     free((*proto)->protos);
     free((*proto)->strings);

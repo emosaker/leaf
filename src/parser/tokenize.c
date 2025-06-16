@@ -36,7 +36,7 @@ void lf_token_deleter(lfToken *tok) {
     }
 }
 
-static inline lfToken token_single(lfTokenType type, size_t idx) {
+static inline lfToken token_single(lfTokenType type, int idx) {
     return (lfToken) {
         .type = type,
         .value = NULL,
@@ -45,7 +45,7 @@ static inline lfToken token_single(lfTokenType type, size_t idx) {
     };
 }
 
-static inline lfToken token_double(lfTokenType type, size_t idx) {
+static inline lfToken token_double(lfTokenType type, int idx) {
     return (lfToken) {
         .type = type,
         .value = NULL,
@@ -54,7 +54,7 @@ static inline lfToken token_double(lfTokenType type, size_t idx) {
     };
 }
 
-static inline void token_singledouble(const char *source, size_t *index, lfArray(lfToken) *tokens, lfTokenType ttsingle, lfTokenType ttdouble, char doublematch) {
+static inline void token_singledouble(const char *source, int *index, lfArray(lfToken) *tokens, lfTokenType ttsingle, lfTokenType ttdouble, char doublematch) {
     if (source[*index + 1] == doublematch) {
         array_push(tokens, token_double(ttdouble, *index));
         *index += 2;
@@ -64,7 +64,7 @@ static inline void token_singledouble(const char *source, size_t *index, lfArray
     *index += 1;
 }
 
-static inline void token_singledoubledouble(const char *source, size_t *index, lfArray(lfToken) *tokens, lfTokenType ttsingle, lfTokenType ttdouble1, lfTokenType ttdouble2, char doublematch1, char doublematch2) {
+static inline void token_singledoubledouble(const char *source, int *index, lfArray(lfToken) *tokens, lfTokenType ttsingle, lfTokenType ttdouble1, lfTokenType ttdouble2, char doublematch1, char doublematch2) {
     if (source[*index + 1] == doublematch1) {
         array_push(tokens, token_double(ttdouble1, *index));
         *index += 2;
@@ -81,7 +81,7 @@ static inline void token_singledoubledouble(const char *source, size_t *index, l
 lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
     lfArray(lfToken) tokens = array_new(lfToken, lf_token_deleter);
 
-    size_t i = 0;
+    int i = 0;
     while (source[i]) {
         switch (source[i]) {
             case '\n':
@@ -108,7 +108,7 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                     }
                     break;
                 } else if (source[i + 1] == '*') {
-                    size_t start = i;
+                    int start = i;
                     i += 2;
                     bool closed = false;
                     while (source[i]) {
@@ -190,8 +190,8 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
 
             default:
                 if (source[i] >= '0' && source[i] <= '9') {
-                    size_t start = i;
-                    size_t dots = 0;
+                    int start = i;
+                    int dots = 0;
                     while (source[i] && ((source[i] >= '0' && source[i] <= '9') || source[i] == '.')) {
                         if (source[i] == '.') {
                             dots += 1;
@@ -217,7 +217,7 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                     (source[i] >= 'a' && source[i] <= 'z') ||
                      source[i] == '_'
                 ) {
-                    size_t start = i;
+                    int start = i;
                     while (
                           source[i] &&
                         ((source[i] >= 'A' && source[i] <= 'Z') ||
@@ -234,7 +234,7 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                     };
                     memcpy(tok.value, source + start, i - start);
                     tok.value[i - start] = 0;
-                    size_t j = 0;
+                    int j = 0;
                     while (keywords[j] != NULL) {
                         if (!strcmp(tok.value, keywords[j])) {
                             tok.type = TT_KEYWORD;
@@ -243,7 +243,7 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                     }
                     array_push(&tokens, tok);
                 } else if (source[i] == '"' || source[i] == '\'') {
-                    size_t start = i;
+                    int start = i;
                     char opener = source[i];
                     i += 1;
                     lfArray(char) buffer = array_new(char);

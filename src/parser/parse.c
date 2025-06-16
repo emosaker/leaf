@@ -17,7 +17,7 @@
 #define alloc(TYPE) (TYPE *)malloc(sizeof(TYPE))
 
 typedef struct lfParseCtx {
-    size_t current_idx;
+    int current_idx;
     lfToken current;
     const lfArray(lfToken) tokens;
     bool errored; /* whether the current context ran into a syntax error */
@@ -28,13 +28,13 @@ typedef struct lfParseCtx {
 } lfParseCtx;
 
 typedef struct lfParseCtxState {
-    size_t old_idx;
+    int old_idx;
     lfToken old;
 } lfParseCtxState;
 
-size_t get_lineno(lfParseCtx *ctx) {
-    size_t line = 1;
-    size_t idx = ctx->current.idx_start;
+int get_lineno(lfParseCtx *ctx) {
+    int line = 1;
+    int idx = ctx->current.idx_start;
     while (idx > 0 && ctx->source[idx]) {
         if (ctx->source[idx] == '\n') {
             line += 1;
@@ -285,7 +285,7 @@ lfNode *parse_literal(lfParseCtx *ctx) {
         return (lfNode *)unop;
     } else if (ctx->current.type == TT_IDENTIFIER) {
         lfToken var = ctx->current;
-        size_t lineno = get_lineno(ctx);
+        int lineno = get_lineno(ctx);
         advance(ctx);
         if (ctx->current.type == TT_ASSIGN) {
             advance(ctx);
@@ -305,7 +305,7 @@ lfNode *parse_literal(lfParseCtx *ctx) {
         }
     } else if (ctx->current.type == TT_LBRACE) {
         lfToken lbrace = ctx->current;
-        size_t lineno = get_lineno(ctx);
+        int lineno = get_lineno(ctx);
         bool is_arr = false;
         bool is_map = false;
         lfArray(lfNode *) keys = array_new(lfNode *, lf_node_deleter);
@@ -596,7 +596,7 @@ lfNode *parse_expr(lfParseCtx *ctx) {
 }
 
 lfNode *parse_vardecl(lfParseCtx *ctx, bool allow_ref) {
-    size_t lineno = get_lineno(ctx);
+    int lineno = get_lineno(ctx);
     if (ctx->current.type != TT_KEYWORD) {
         parse_error_here(ctx, "expected 'var', 'const', or 'ref'");
         return NULL;
@@ -703,7 +703,7 @@ bool parse_generics(lfParseCtx *ctx, lfArray(lfToken) *type_names, lfArray(lfTyp
 }
 
 lfNode *parse_fn(lfParseCtx *ctx) {
-    size_t lineno = get_lineno(ctx);
+    int lineno = get_lineno(ctx);
     if (ctx->current.type != TT_KEYWORD || strcmp(ctx->current.value, "fn")) {
         parse_error_here(ctx, "expected 'fn'");
         return NULL;
@@ -814,7 +814,7 @@ lfNode *parse_fn(lfParseCtx *ctx) {
 }
 
 lfNode *parse_compound(lfParseCtx *ctx) {
-    size_t lineno = get_lineno(ctx);
+    int lineno = get_lineno(ctx);
     if (ctx->current.type != TT_LBRACE) {
         parse_error_here(ctx, "expected '{'");
         return NULL;
@@ -839,7 +839,7 @@ lfNode *parse_compound(lfParseCtx *ctx) {
 }
 
 lfNode *parse_statement(lfParseCtx *ctx) {
-    size_t lineno = get_lineno(ctx);
+    int lineno = get_lineno(ctx);
     if (ctx->current.type == TT_KEYWORD) {
         if (!strcmp(ctx->current.value, "var") || !strcmp(ctx->current.value, "const")) {
             return parse_vardecl(ctx, false);
@@ -1012,7 +1012,7 @@ lfNode *lf_parse(const char *source, const char *file) {
         array_push(&chunk->statements, statement);
     }
 
-    for (size_t i = 0; i < length(&tokens); i++) {
+    for (int i = 0; i < length(&tokens); i++) {
         if (tokens[i].type == TT_KEYWORD || (ctx.errored && i >= ctx.current_idx)) {
             lf_token_deleter(tokens + i);
         }

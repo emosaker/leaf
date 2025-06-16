@@ -43,7 +43,7 @@ void lf_gc_step(lfState *state) {
     }
     /* mark the globals */
     if (state->globals != NULL) {
-        for (size_t i = 0; i < size(&state->globals); i++) {
+        for (int i = 0; i < size(&state->globals); i++) {
             lfValueBucket *current = state->globals[i];
             while (current) {
                 mark(state, &current->key);
@@ -61,7 +61,7 @@ void lf_gc_step(lfState *state) {
             lfGCObject *next = gco->next;
             if (gco->t == LF_ARRAY) {
                 lfValueArray *arr = (lfValueArray *)gco;
-                for (size_t i = 0; i < length(&arr->values); i++) {
+                for (int i = 0; i < length(&arr->values); i++) {
                     if (arr->values[i].type == LF_STRING || arr->values[i].type == LF_CLOSURE || arr->values[i].type == LF_ARRAY) {
                         lfGCObject *header = arr->values[i].v.gco;
                         if (header->t == LF_STRING || header->t == LF_CLOSURE) {
@@ -83,7 +83,7 @@ void lf_gc_step(lfState *state) {
 
     /* mark strays */
     if (state->strays != NULL) {
-        for (size_t i = 0; i < size(&state->strays); i++) {
+        for (int i = 0; i < size(&state->strays); i++) {
             lfValueBucket *current = state->strays[i];
             lfValueBucket *previous = NULL;
             while (current) {

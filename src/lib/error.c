@@ -7,9 +7,9 @@
 #include "lib/error.h"
 #include "lib/ansi.h"
 
-void error_underline_code(const char *source, size_t idx_start, size_t idx_end) {
+void error_underline_code(const char *source, int idx_start, int idx_end) {
     /* find start of the line with the error */
-    size_t line_start = idx_start;
+    int line_start = idx_start;
     while (line_start > 0 && source[line_start] && source[line_start] != '\n') {
         line_start -= 1;
     }
@@ -17,8 +17,8 @@ void error_underline_code(const char *source, size_t idx_start, size_t idx_end) 
         line_start += 1;
     }
 
-    size_t i = line_start;
-    size_t j = line_start;
+    int i = line_start;
+    int j = line_start;
     while (i < idx_end) {
         /* print the line of code */
         while (source[i] && source[i] != '\n') {
@@ -49,14 +49,14 @@ void error_underline_code(const char *source, size_t idx_start, size_t idx_end) 
     }
 }
 
-void lf_error_print(const char *file, const char *source, size_t idx_start, size_t idx_end, const char *message) {
-    size_t line_start = idx_start;
+void lf_error_print(const char *file, const char *source, int idx_start, int idx_end, const char *message) {
+    int line_start = idx_start;
     while (line_start > 0 && source[line_start] && source[line_start] != '\n') {
         line_start -= 1;
     }
 
-    size_t column = idx_start - line_start + 1 - (source[line_start] == '\n' ? 1 : 0);
-    size_t line = 1;
+    int column = idx_start - line_start + 1 - (source[line_start] == '\n' ? 1 : 0);
+    int line = 1;
     while (line_start > 0 && source[line_start]) {
         if (source[line_start] == '\n') {
             line += 1;
@@ -64,6 +64,6 @@ void lf_error_print(const char *file, const char *source, size_t idx_start, size
         line_start -= 1;
     }
 
-    printf("%s:%zu:%zu: %s:\n", file, line, column, message);
+    printf("%s:%d:%d: %s:\n", file, line, column, message);
     error_underline_code(source, idx_start, idx_end);
 }

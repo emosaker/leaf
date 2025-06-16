@@ -17,14 +17,14 @@ typedef struct lfStackFrame {
 typedef struct lfCompilerCtx {
     const char *file;
     const char *source;
-    size_t top; /* stack top */
+    int top; /* stack top */
     bool discarded; /* whether the value of the currently compiled expression will be discarded */
     bool isclass; /* whether the compiler is compiling the body of a class */
     lfArray(lfProto *) protos;
     lfArray(char *) strings;
     lfArray(uint64_t) ints;
     lfArray(uint8_t) current;
-    lfArray(size_t) linenumbers;
+    lfArray(int) linenumbers;
     lfVariableMap scope;
     lfArray(lfStackFrame *) fnstack;
 } lfCompilerCtx;

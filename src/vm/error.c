@@ -18,10 +18,10 @@ void error_jumpout(lfState *state) {
 
 void error_print_stack_trace(lfState *state) {
     printf("traceback:\n");
-    for (size_t i = 0; i < length(&state->frame); i++) {
+    for (int i = 0; i < length(&state->frame); i++) {
         lfCallFrame f = state->frame[i];
         if (!f.cl->is_c)
-            printf(" -> line %zu, in %s\n", f.cl->f.lf.proto->linenumbers[f.ip], lf_clname(f.cl));
+            printf(" -> line %d, in %s\n", f.cl->f.lf.proto->linenumbers[f.ip], lf_clname(f.cl));
         else
             printf(" -> in %s\n", lf_clname(f.cl));
     }
@@ -32,7 +32,7 @@ void lf_errorf(lfState *state, const char *fmt, ...) {
     va_start(args1, fmt);
     va_list args2;
     va_copy(args2, args1);
-    size_t length = vsnprintf(NULL, 0, fmt, args1) + 1;
+    int length = vsnprintf(NULL, 0, fmt, args1) + 1;
     char *buf = malloc(length);
     va_end(args1);
     vsnprintf(buf, length, fmt, args2);

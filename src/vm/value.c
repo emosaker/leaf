@@ -43,7 +43,7 @@ void lf_pushint(lfState *state, uint64_t value) {
     };
 }
 
-lfString *alloc_string(lfState *state, size_t length) {
+lfString *alloc_string(lfState *state, int length) {
     lfString *s = malloc(sizeof(lfString) + length + 1);
     s->t = LF_STRING;
     s->length = length;
@@ -53,7 +53,7 @@ lfString *alloc_string(lfState *state, size_t length) {
     return s;
 }
 
-void lf_pushstring(lfState *state, char *value, size_t length) {
+void lf_pushstring(lfState *state, char *value, int length) {
     LF_CHECKTOP(state);
     lfString *s = alloc_string(state, length);
     memcpy(s->string, value, length);
@@ -120,8 +120,8 @@ void lf_newccl(lfState *state, lfccl func, const char *name) {
     };
 }
 
-lfClosure *alloc_lfcl(lfState *state, size_t nupvalues) {
-    lfClosure *cl = malloc(sizeof(lfClosure) + sizeof(lfValue *) * nupvalues);
+lfClosure *alloc_lfcl(lfState *state, int szupvalues) {
+    lfClosure *cl = malloc(sizeof(lfClosure) + sizeof(lfValue *) * szupvalues);
     cl->t = LF_CLOSURE;
     cl->gc_color = LF_GCWHITE;
     cl->next = state->gc_objects;
@@ -131,7 +131,7 @@ lfClosure *alloc_lfcl(lfState *state, size_t nupvalues) {
 
 void lf_newlfcl(lfState *state, lfProto *proto) {
     LF_CHECKTOP(state);
-    lfClosure *cl = alloc_lfcl(state, proto->nupvalues);
+    lfClosure *cl = alloc_lfcl(state, proto->szupvalues);
     cl->is_c = false;
     cl->f.lf.proto = lf_proto_clone(proto);
     *state->top++ = (lfValue) {
@@ -160,7 +160,7 @@ lfValueArray *alloc_array(lfState *state) {
     return arr;
 }
 
-void lf_pusharray(lfState *state, size_t size) {
+void lf_pusharray(lfState *state, int size) {
     LF_CHECKTOP(state);
     lfValueArray *arr = alloc_array(state);
     arr->values = array_new(lfValue);
@@ -198,7 +198,7 @@ void lf_printvalue(const lfValue *value) {
             break;
         case LF_ARRAY:
             printf("{");
-            for (size_t i = 0; i < length(&lf_array(value)->values); i++) {
+            for (int i = 0; i < length(&lf_array(value)->values); i++) {
                 lf_printvalue(lf_array(value)->values + i);
                 if (i < length(&lf_array(value)->values) - 1)
                     printf(", ");

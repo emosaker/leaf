@@ -43,8 +43,8 @@ typedef struct lfGCObject {
 
 #define LF_CHECKTOP(STATE) { \
     if (((STATE)->top - (STATE)->stack) >= (STATE)->stack_size) { \
-        size_t top_off = (STATE)->top - (STATE)->stack; \
-        size_t base_off = (STATE)->base - (STATE)->stack; \
+        int top_off = (STATE)->top - (STATE)->stack; \
+        int base_off = (STATE)->base - (STATE)->stack; \
         (STATE)->stack_size *= 2; \
         (STATE)->stack = realloc((STATE)->stack, (STATE)->stack_size * sizeof(lfValue)); \
         (STATE)->top = (STATE)->stack + top_off; \
@@ -59,14 +59,14 @@ typedef lfArray(struct lfValueBucket *) lfValueMap;
 typedef struct lfCallFrame {
     struct lfClosure *cl;
     /* for stack re-allocation */
-    size_t top;
-    size_t base;
+    int top;
+    int base;
     /* for stack trace */
-    size_t ip;
+    int ip;
 } lfCallFrame;
 
 typedef struct lfState {
-    size_t stack_size;
+    int stack_size;
     struct lfValue *stack;
     struct lfValue *base;
     struct lfValue *top;
@@ -104,7 +104,7 @@ typedef struct lfClosure {
 
 typedef struct lfString {
     LF_GCHEADER;
-    size_t length;
+    int length;
     char string[];
 } lfString;
 
@@ -130,7 +130,7 @@ typedef struct lfValueBucket {
 } lfValueBucket;
 
 /* value map */
-lfValueMap lf_valuemap_create(size_t size);
+lfValueMap lf_valuemap_create(int size);
 lfValueMap lf_valuemap_clone(const lfValueMap *map);
 bool lf_valuemap_lookup(const lfValueMap *map, const lfValue *key, lfValue *out);
 void lf_valuemap_insert(lfValueMap *map, const lfValue *key, const lfValue *value); /* TODO: possibly resize the map when beneficial */
@@ -148,10 +148,10 @@ void lf_getsglobal(lfState *state, const char *key);
 
 /* stack */
 void lf_pushint(lfState *state, uint64_t value);
-void lf_pushstring(lfState *state, char *value, size_t length);
+void lf_pushstring(lfState *state, char *value, int length);
 void lf_pushbool(lfState *state, bool value);
 void lf_pushnull(lfState *state);
-void lf_pusharray(lfState *state, size_t size);
+void lf_pusharray(lfState *state, int size);
 lfValue lf_pop(lfState *state);
 void lf_push(lfState *state, const lfValue *value);
 void lf_getupval(lfState *state, int index);

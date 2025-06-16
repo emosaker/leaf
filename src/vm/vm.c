@@ -85,7 +85,7 @@ void lf_call(lfState *state, int nargs, int nret) {
 int lf_run(lfState *state) {
     int captured = 0;
     lfProto *proto = state->frame[length(&state->frame) - 1].cl->f.lf.proto; /* proto is gotten here instead of passed to ensure that any error thrown by the VM has a lfCallInfo for diagnostics */
-    for (size_t i = 0; i < proto->szcode; i++) {
+    for (int i = 0; i < proto->szcode; i++) {
         uint32_t ins = proto->code[i];
         switch (INS_OP(ins)) {
             case OP_PUSHSI:
@@ -167,7 +167,7 @@ int lf_run(lfState *state) {
                         if (rhs.type != LF_STRING) {
                             goto unsupported_add;
                         }
-                        size_t len = lf_string(&lhs)->length + lf_string(&rhs)->length;
+                        int len = lf_string(&lhs)->length + lf_string(&rhs)->length;
                         char *concatenated = malloc(len + 1);
                         memcpy(concatenated, lf_string(&lhs)->string, lf_string(&lhs)->length);
                         memcpy(concatenated + lf_string(&lhs)->length, lf_string(&rhs)->string, lf_string(&rhs)->length);
@@ -265,7 +265,7 @@ int lf_run(lfState *state) {
                         lf_pusharray(state, 0);
                         lfValue arrv = lf_pop(state);
                         lfValueArray *arr = lf_array(&arrv);
-                        for (int i = 0; i < cl->f.lf.proto->nupvalues; i++) {
+                        for (int i = 0; i < cl->f.lf.proto->szupvalues; i++) {
                             if (cl->f.lf.upvalues[i] < state->base) continue;
                             array_push(&arr->values, *cl->f.lf.upvalues[i]);
                             cl->f.lf.upvalues[i] = arr->values + length(&arr->values) - 1;

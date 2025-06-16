@@ -6,7 +6,6 @@
 #define LEAF_BYTECODE_H
 
 #include <stdint.h>
-#include <stdlib.h>
 
 typedef enum lfOpCode {
     OP_NOP,
@@ -77,23 +76,23 @@ typedef struct lfUpValue {
 } lfUpValue;
 
 typedef struct lfProto {
-    size_t szcode;
     uint32_t *code;
-    size_t szstrings;
     char **strings;
-    size_t szints;
     uint64_t *ints;
-    size_t szfloats;
     double *floats;
-    size_t szprotos;
     struct lfProto **protos;
-    size_t szlinenumbers;
-    size_t *linenumbers;
+    int *linenumbers;
 
-    int nupvalues;
-    int nargs;
+    int szcode;
+    int szprotos;
+    int szfloats;
+    int szints;
+    int szlinenumbers;
+    int szstrings;
+    int szupvalues;
+    int szargs;
 
-    size_t name;
+    int name;
 } lfProto;
 
 void lf_proto_deleter(lfProto **proto);

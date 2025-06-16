@@ -7,7 +7,7 @@
 
 #include <stdlib.h>
 
-void lf_error_underline_code(const char *source, size_t idx_start, size_t idx_end);
-void lf_error_print(const char *file, const char *source, size_t idx_start, size_t idx_end, const char *message);
+void lf_error_underline_code(const char *source, int idx_start, int idx_end);
+void lf_error_print(const char *file, const char *source, int idx_start, int idx_end, const char *message);
 
 #endif /* LEAF_ERROR_H */

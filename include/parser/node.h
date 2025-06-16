@@ -60,7 +60,7 @@ typedef enum lfTypeType {
 
 #define LF_NODE_HEADER \
     lfNodeType type; \
-    size_t lineno;
+    int lineno;
 
 typedef struct lfNode {
     LF_NODE_HEADER;

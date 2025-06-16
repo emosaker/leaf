@@ -23,22 +23,22 @@ void lf_valuebucket_deleter(lfValueBucket **bucket) {
 }
 
 void lf_valuemap_delete(lfValueMap *map) {
-    for (size_t i = 0; i < size(map); i++) {
+    for (int i = 0; i < size(map); i++) {
         if ((*map)[i])
             lf_valuebucket_deleter((*map) + i);
     }
     array_delete(map);
 }
 
-size_t lf_valuemap_compute_hash(const lfValue *value) {
+int lf_valuemap_compute_hash(const lfValue *value) {
     switch (value->type) {
         case LF_INT:
             return value->v.integer;
         case LF_BOOL:
             return value->v.boolean;
         case LF_STRING: {
-            size_t hash = 0;
-            for (size_t i = 0; i < lf_string(value)->length; i++) {
+            int hash = 0;
+            for (int i = 0; i < lf_string(value)->length; i++) {
                 hash = (31 * hash + lf_string(value)->string[i]);
             }
             return hash;
@@ -46,7 +46,7 @@ size_t lf_valuemap_compute_hash(const lfValue *value) {
         case LF_NULL:
             return 0;
         case LF_CLOSURE:
-            return (size_t)lf_cl(value)->f.c.func;
+            return (int)(size_t)lf_cl(value)->f.c.func;
         default:
             return 0; /* unhashable for now :( */
     }
@@ -72,19 +72,19 @@ bool lf_valuemap_compare_values(const lfValue *lhs, const lfValue *rhs) {
     }
 }
 
-lfValueMap lf_valuemap_create(size_t size) {
+lfValueMap lf_valuemap_create(int size) {
     lfValueMap map = array_new(lfValueBucket *);
     array_reserve(&map, size);
-    for (size_t i = 0; i < size; i++)
+    for (int i = 0; i < size; i++)
         map[i] = NULL;
     return map;
 }
 
 lfValueMap lf_valuemap_clone(const lfValueMap *map) {
-    size_t map_size = size(map);
+    int map_size = size(map);
     lfValueMap new_map = lf_valuemap_create(map_size);
 
-    for (size_t i = 0; i < map_size; ++i) {
+    for (int i = 0; i < map_size; ++i) {
         lfValueBucket *current = (*map)[i];
         lfValueBucket *prev_new_bucket = NULL;
 
@@ -110,7 +110,7 @@ lfValueMap lf_valuemap_clone(const lfValueMap *map) {
 }
 
 bool lf_valuemap_lookup(const lfValueMap *map, const lfValue *key, lfValue *out) {
-    size_t hash = lf_valuemap_compute_hash(key) % size(map);
+    int hash = lf_valuemap_compute_hash(key) % size(map);
     lfValueBucket *b = (*map)[hash];
     if (b == NULL) return false;
     if (b->next == NULL) {
@@ -130,7 +130,7 @@ bool lf_valuemap_lookup(const lfValueMap *map, const lfValue *key, lfValue *out)
 void lf_valuemap_insert(lfValueMap *map, const lfValue *key, const lfValue *value) {
     if ((double)length(map) / (double)size(map) >= 0.75) { /* load factor over 75%, expand map */
         lfValueMap expanded = lf_valuemap_create(size(map) * 2);
-        for (size_t i = 0; i < size(map); i++)
+        for (int i = 0; i < size(map); i++)
             if ((*map)[i]) {
                 lfValueBucket *b = (*map)[i];
                 do {
@@ -141,7 +141,7 @@ void lf_valuemap_insert(lfValueMap *map, const lfValue *key, const lfValue *valu
         lf_valuemap_delete(map);
         *map = expanded;
     }
-    size_t hash = lf_valuemap_compute_hash(key) % size(map);
+    int hash = lf_valuemap_compute_hash(key) % size(map);
     lfValueBucket *next = malloc(sizeof(lfValueBucket));
     next->key = *key;
     next->value = *value;

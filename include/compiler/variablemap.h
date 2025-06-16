@@ -26,7 +26,7 @@ typedef struct lfVariableBucket {
 
 typedef lfArray(lfVariableBucket *) lfVariableMap;
 
-lfVariableMap lf_variablemap_create(size_t size);
+lfVariableMap lf_variablemap_create(int size);
 lfVariableMap lf_variablemap_clone(const lfVariableMap *map);
 bool lf_variablemap_lookup(const lfVariableMap *map, const char *key, lfVariable *out);
 void lf_variablemap_insert(lfVariableMap *map, const char *key, lfVariable value); /* TODO: possibly resize the map when beneficial */
