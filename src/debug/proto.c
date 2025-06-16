@@ -3,43 +3,132 @@
  */
 
 #include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
 
 #include "compiler/bytecode.h"
+#include "lib/array.h"
 #include "debug/proto.h"
 
-void print_instruction(const lfProto *proto, uint32_t *code, size_t *i) {
+typedef struct lfLabel {
+    size_t i;
+    size_t label;
+} lfLabel;
+
+lfArray(lfLabel) mark_labels(const lfProto *proto) {
+    lfArray(lfLabel) labels = array_new(lfLabel);
+    size_t label = 0;
+    for (size_t i = 0; i < proto->szcode; i++) {
+        uint32_t ins = proto->code[i];
+        switch (INS_OP(ins)) {
+            case OP_JMPIFNOT:
+            case OP_JMP: {
+                bool found = false;
+                for (size_t j = 0; j < length(&labels); j++) {
+                    if (labels[j].i == i + INS_E(ins) / 4) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) {
+                    break;
+                }
+                lfLabel lbl = (lfLabel) {
+                    .i = i + INS_E(ins) / 4,
+                    .label = label++
+                };
+                array_push(&labels, lbl);
+            } break;
+            case OP_JMPBACK: {
+                bool found = false;
+                for (size_t j = 0; j < length(&labels); j++) {
+                    if (labels[j].i == i + INS_E(ins) / 4) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) {
+                    break;
+                }
+                lfLabel lbl = (lfLabel) {
+                    .i = i - INS_E(ins) / 4 - 1,
+                    .label = label++
+                };
+                array_push(&labels, lbl);
+            }
+        }
+    }
+    return labels;
+}
+
+void print_string_comment(const char *string) {
+    char buf[30];
+    if (strlen(string) >= 26) {
+        memcpy(buf, string, 26);
+        buf[26] = '.';
+        buf[27] = '.';
+        buf[28] = '.';
+        buf[29] = 0;
+    } else {
+        memcpy(buf, string, strlen(string));
+        buf[strlen(string)] = '"';
+        buf[strlen(string) + 1] = 0;
+    }
+    printf(" ; \"%s", buf);
+}
+
+void print_instruction(const lfProto *proto, lfArray(lfLabel) labels, size_t *i) {
+    for (size_t j = 0; j < length(&labels); j++) {
+        lfLabel lbl = labels[j];
+        if (lbl.i == *i - 1) {
+            printf(" .L%zu:\n", lbl.label);
+            break;
+        }
+    }
+    if (*i >= proto->szcode) {
+        (*i)++;
+        return;
+    }
+    uint32_t *code = proto->code;
     uint32_t ins = code[*i];
+    printf("  ");
     switch (INS_OP(ins)) {
         case OP_PUSHSI:
             printf("pushshort %u\n", INS_E(ins));
             break;
         case OP_PUSHLI:
-            printf("pushlong %lu\n", proto->ints[INS_E(ins)]);
+            printf("pushlong %u (%lu)\n", INS_E(ins), proto->ints[INS_E(ins)]);
             break;
         case OP_PUSHS:
-            printf("pushstring \"%s\"\n", proto->strings[INS_E(ins)]);
+            printf("pushstring %u", INS_E(ins));
+            print_string_comment(proto->strings[INS_E(ins)]);
+            printf("\n");
             break;
         case OP_PUSHNULL:
             printf("pushnull\n");
             break;
         case OP_DUP:
-            printf("dup offset=%u\n", INS_E(ins));
+            printf("dup %u\n", INS_E(ins));
             break;
         case OP_POP:
-            printf("pop values=%d\n", INS_E(ins));
+            printf("pop %d\n", INS_E(ins));
             break;
 
         case OP_GETGLOBAL:
-            printf("getglob name=%s\n", proto->strings[INS_E(ins)]);
+            printf("getglob %u", INS_E(ins));
+            print_string_comment(proto->strings[INS_E(ins)]);
+            printf("\n");
             break;
         case OP_SETGLOBAL:
-            printf("setglob name=%s\n", proto->strings[INS_E(ins)]);
+            printf("setglob %u", INS_E(ins));
+            print_string_comment(proto->strings[INS_E(ins)]);
+            printf("\n");
             break;
         case OP_GETUPVAL:
-            printf("getupval offset=%d\n", INS_E(ins));
+            printf("getupval %d\n", INS_E(ins));
             break;
         case OP_SETUPVAL:
-            printf("setupval offset=%d\n", INS_E(ins));
+            printf("setupval %d\n", INS_E(ins));
             break;
         case OP_INDEX:
             printf("index\n");
@@ -52,10 +141,10 @@ void print_instruction(const lfProto *proto, uint32_t *code, size_t *i) {
             break;
 
         case OP_NEWARR:
-            printf("newarr nvalues=%u\n", INS_E(ins));
+            printf("newarr %u\n", INS_E(ins));
             break;
         case OP_NEWMAP:
-            printf("newmap nmembers=%u\n", INS_E(ins));
+            printf("newmap %u\n", INS_E(ins));
             break;
 
         case OP_ADD: printf("add\n"); break;
@@ -80,32 +169,46 @@ void print_instruction(const lfProto *proto, uint32_t *code, size_t *i) {
         case OP_NEG: printf("neg\n"); break;
         case OP_NOT: printf("not\n"); break;
 
-        case OP_JMP:
-            printf("jmp +%u\n", INS_E(ins));
-            break;
-        case OP_JMPBACK:
-            printf("jmp -%u\n", INS_E(ins));
-            break;
-        case OP_JMPIFNOT:
-            printf("jmpifnot +%u\n", INS_E(ins));
-            break;
+        case OP_JMP: {
+            printf("jmp ");
+            lfLabel lbl = (lfLabel) { .i = -1, .label = -1 };
+            for (size_t j = 0; j < length(&labels); j++) {
+                if (labels[j].i == *i + INS_E(ins) / 4)
+                    lbl = labels[j];
+            }
+            printf(".L%zu\n", lbl.label);
+        } break;
+        case OP_JMPBACK: {
+            printf("jmp ");
+            lfLabel lbl = (lfLabel) { .i = -1, .label = -1 };
+            for (size_t j = 0; j < length(&labels); j++) {
+                if (labels[j].i == *i - INS_E(ins) / 4)
+                    lbl = labels[j];
+            }
+            printf(".L%zu\n", lbl.label);
+        } break;
+        case OP_JMPIFNOT: {
+            printf("jmpifnot ");
+            lfLabel lbl = (lfLabel) { .i = -1, .label = -1 };
+            for (size_t j = 0; j < length(&labels); j++) {
+                if (labels[j].i == *i + INS_E(ins) / 4)
+                    lbl = labels[j];
+            }
+            printf(".L%zu\n", lbl.label);
+        } break;
 
         case OP_CALL:
             printf("call args=%d, ret=%d\n", INS_A(ins), INS_B(ins));
             break;
 
         case OP_CL:
-            printf("closure proto=%s\n", proto->protos[INS_E(ins)]->name != 0 ? proto->protos[INS_E(ins)]->strings[proto->protos[INS_E(ins)]->name - 1] : "<anonymous>");
+            printf("closure %u (%s)\n", INS_E(ins), proto->protos[INS_E(ins)]->name != 0 ? proto->protos[INS_E(ins)]->strings[proto->protos[INS_E(ins)]->name - 1] : "<anonymous>");
             break;
         case OP_CAPTURE:
-            printf("capture offset=%d by=%s\n", INS_D(ins), INS_A(ins) == UVT_REF ? "ref" : "idx");
+            printf("capture %d (%s)\n", INS_D(ins), INS_A(ins) == UVT_REF ? "ref" : "idx");
             break;
         case OP_RET:
-            printf("return values=%d\n", INS_A(ins));
-            break;
-
-        case OP_CLS:
-            printf("class members=%d\n", INS_E(ins));
+            printf("return %d\n", INS_A(ins));
             break;
 
         default:
@@ -125,8 +228,9 @@ void lf_proto_print(const lfProto *proto) {
         printf("<anonymous>:\n");
     }
     size_t i = 0;
-    while (i < proto->szcode) {
-        printf("  ");
-        print_instruction(proto, proto->code, &i);
+    lfArray(lfLabel) labels = mark_labels(proto);
+    while (i < proto->szcode + 1) {
+        print_instruction(proto, labels, &i);
     }
+    array_delete(&labels);
 }
