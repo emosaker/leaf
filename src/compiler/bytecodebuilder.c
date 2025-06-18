@@ -8,17 +8,18 @@
 #include "compiler/bytecode.h"
 #include "lib/array.h"
 
-void string_deleter(char **string) {
-    free(*string);
+void string_deleter(lfArray(char) *string) {
+    array_delete(string);
 }
 
 void lf_proto_deleter(lfProto **proto) {
     for (int i = 0; i < (*proto)->szprotos; i++)
         lf_proto_deleter((*proto)->protos + i);
     for (int i = 0; i < (*proto)->szstrings; i++)
-        string_deleter((*proto)->strings + i);
+        free((*proto)->strings[i]);
     free((*proto)->protos);
     free((*proto)->strings);
+    free((*proto)->string_lengths);
     free((*proto)->ints);
     free((*proto)->floats);
     free((*proto)->code);
@@ -34,7 +35,7 @@ lfBytecodeBuilder bytecodebuilder_init(lfBytecodeBuilder *bb) {
         .lines = array_new(int),
         .ints = array_new(uint64_t),
         .floats = array_new(double),
-        .strings = array_new(char *, string_deleter),
+        .strings = array_new(lfArray(char), string_deleter),
         .protos = array_new(lfProto *, lf_proto_deleter)
     };
     return old;
@@ -45,10 +46,7 @@ void bytecodebuilder_restore(lfBytecodeBuilder *bb, lfBytecodeBuilder old, bool 
     if (bb->ints != NULL) array_delete(&bb->ints);
     if (bb->floats != NULL) array_delete(&bb->floats);
     if (bb->lines != NULL) array_delete(&bb->lines);
-    if (bb->strings != NULL) {
-        if (retain) deleter(&bb->strings) = NULL;
-        array_delete(&bb->strings);
-    }
+    if (bb->strings != NULL) array_delete(&bb->strings);
     if (bb->protos != NULL) {
         if (retain) deleter(&bb->protos) = NULL;
         array_delete(&bb->protos);
@@ -105,27 +103,42 @@ uint32_t new_f64(lfBytecodeBuilder *bb, double value) {
     return length(&bb->floats) - 1;
 }
 
-uint32_t new_string(lfBytecodeBuilder *bb, char *value, int length) {
+uint32_t new_string(lfBytecodeBuilder *bb, lfArray(char) value) {
     for (int i = 0; i < length(&bb->strings); i++) { /* TODO: Replace with a map for O(1) insertion */
-        if (!strncmp(bb->strings[i], value, length))
+        if (!strncmp(bb->strings[i], value, length(&value)))
             return i;
     }
-    char *clone = malloc(length + 1);
-    memcpy(clone, value, length);
-    clone[length] = 0;
+    lfArray(char) clone = array_new(char);
+    array_reserve(&clone, length(&value));
+    length(&clone) = length(&value);
+    memcpy(clone, value, length(&value));
     array_push(&bb->strings, clone);
     return length(&bb->strings) - 1;
 }
 
-lfProto *bytecodebuilder_allocproto(lfBytecodeBuilder *bb, char *name, int szupvalues, int szargs) {
+uint32_t new_cstring(lfBytecodeBuilder *bb, char *value, int length) {
+    for (int i = 0; i < length(&bb->strings); i++) {
+        if (!strncmp(bb->strings[i], value, length))
+            return i;
+    }
+    lfArray(char) clone = array_new(char);
+    array_reserve(&clone, length);
+    length(&clone) = length;
+    memcpy(clone, value, length);
+    array_push(&bb->strings, clone);
+    return length(&bb->strings) - 1;
+}
+
+lfProto *bytecodebuilder_allocproto(lfBytecodeBuilder *bb, lfArray(char) name, int szupvalues, int szargs) {
     lfProto *proto = malloc(sizeof(lfProto));
     proto->code = malloc(length(&bb->bytecode));
     proto->szcode = length(&bb->bytecode) / 4;
-    if (name) proto->name = new_string(bb, name, strlen(name)) + 1;
+    if (name) proto->name = new_string(bb, name) + 1;
     else proto->name = 0;
     proto->protos = malloc(sizeof(lfProto *) * length(&bb->protos));
     proto->szprotos = length(&bb->protos);
     proto->strings = malloc(sizeof(char *) * length(&bb->strings));
+    proto->string_lengths = malloc(sizeof(int) * length(&bb->strings));
     proto->szstrings = length(&bb->strings);
     proto->ints = malloc(sizeof(uint64_t) * length(&bb->ints));
     proto->szints = length(&bb->ints);
@@ -136,9 +149,15 @@ lfProto *bytecodebuilder_allocproto(lfBytecodeBuilder *bb, char *name, int szupv
     proto->szupvalues = szupvalues;
     proto->szargs = szargs;
 
+    for (int i = 0; i < length(&bb->strings); i++) {
+        char *copy = malloc(length(&bb->strings[i]));
+        memcpy(copy, bb->strings[i], length(&bb->strings[i]));
+        proto->strings[i] = copy;
+        proto->string_lengths[i] = length(&bb->strings[i]);
+    }
+
     memcpy(proto->code, bb->bytecode, length(&bb->bytecode));
     memcpy(proto->protos, bb->protos, sizeof(lfProto *) * length(&bb->protos));
-    memcpy(proto->strings, bb->strings, sizeof(char *) * length(&bb->strings));
     memcpy(proto->ints, bb->ints, sizeof(uint64_t) * length(&bb->ints));
     memcpy(proto->floats, bb->floats, sizeof(double) * length(&bb->floats));
     memcpy(proto->linenumbers, bb->lines, sizeof(int) * length(&bb->lines));
@@ -149,6 +168,7 @@ lfProto *bytecodebuilder_allocproto(lfBytecodeBuilder *bb, char *name, int szupv
 lfProto *lf_proto_clone(lfProto *proto) {
     lfProto *new = malloc(sizeof(lfProto));
     new->strings = malloc(sizeof(char *) * proto->szstrings);
+    new->string_lengths = malloc(sizeof(int) * proto->szstrings);
     new->szstrings = proto->szstrings;
     new->ints = malloc(sizeof(uint64_t) * proto->szints);
     new->szints = proto->szints;
@@ -165,9 +185,10 @@ lfProto *lf_proto_clone(lfProto *proto) {
     new->szupvalues = proto->szupvalues;
 
     for (int i = 0; i < proto->szstrings; i++) {
-        char *clone = malloc(strlen(proto->strings[i]) + 1);
-        memcpy(clone, proto->strings[i], strlen(proto->strings[i]) + 1);
+        char *clone = malloc(proto->string_lengths[i]);
+        memcpy(clone, proto->strings[i], proto->string_lengths[i]);
         new->strings[i] = clone;
+        new->string_lengths[i] = proto->string_lengths[i];
     }
 
     for (int i = 0; i < proto->szprotos; i++) {

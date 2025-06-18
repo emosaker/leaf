@@ -30,7 +30,8 @@ void emit_u24(lfBytecodeBuilder *bb, uint32_t value);
 
 uint32_t new_u64(lfBytecodeBuilder *bb, uint64_t value);
 uint32_t new_f64(lfBytecodeBuilder *bb, double value);
-uint32_t new_string(lfBytecodeBuilder *bb, char *value, int length);
+uint32_t new_string(lfBytecodeBuilder *bb, lfArray(char) value);
+uint32_t new_cstring(lfBytecodeBuilder *bb, char *value, int length);
 
 lfProto *bytecodebuilder_allocproto(lfBytecodeBuilder *bb, char *name, int szupvalues, int szargs);
 

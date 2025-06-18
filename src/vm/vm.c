@@ -97,7 +97,7 @@ int lf_run(lfState *state) {
                 lf_pushfloat(state, proto->floats[INS_E(ins)]);
                 break;
             case OP_PUSHS:
-                lf_pushstring(state, proto->strings[INS_E(ins)], strlen(proto->strings[INS_E(ins)]));
+                lf_pushstring(state, proto->strings[INS_E(ins)], proto->string_lengths[INS_E(ins)]);
                 break;
             case OP_PUSHNULL:
                 lf_pushnull(state);
@@ -110,10 +110,10 @@ int lf_run(lfState *state) {
                 break;
 
             case OP_GETGLOBAL:
-                lf_getsglobal(state, proto->strings[INS_E(ins)]);
+                lf_getsglobal(state, proto->strings[INS_E(ins)], proto->string_lengths[INS_E(ins)]);
                 break;
             case OP_SETGLOBAL:
-                lf_setsglobal(state, proto->strings[INS_E(ins)]);
+                lf_setsglobal(state, proto->strings[INS_E(ins)], proto->string_lengths[INS_E(ins)]);
                 break;
             case OP_GETUPVAL:
                 lf_getupval(state, INS_E(ins));

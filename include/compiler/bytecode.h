@@ -79,6 +79,7 @@ typedef struct lfUpValue {
 typedef struct lfProto {
     uint32_t *code;
     char **strings;
+    int *string_lengths;
     uint64_t *ints;
     double *floats;
     struct lfProto **protos;

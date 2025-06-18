@@ -143,8 +143,10 @@ void lf_state_delete(lfState *state);
 /* globals */
 void lf_setglobal(lfState *state, const lfValue *key);
 void lf_getglobal(lfState *state, const lfValue *key);
-void lf_setsglobal(lfState *state, const char *key);
-void lf_getsglobal(lfState *state, const char *key);
+void lf_setsglobal(lfState *state, const char *key, int length);
+void lf_getsglobal(lfState *state, const char *key, int length);
+void lf_setcsglobal(lfState *state, const char *key);
+void lf_getcsglobal(lfState *state, const char *key);
 
 /* stack */
 void lf_pushint(lfState *state, uint64_t value);

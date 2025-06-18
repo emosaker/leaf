@@ -24,13 +24,27 @@ void lf_getglobal(lfState *state, const lfValue *key) {
     }
 }
 
-void lf_setsglobal(lfState *state, const char *key) {
+void lf_setsglobal(lfState *state, const char *key, int length) {
+    lf_pushstring(state, (char *)key, length);
+    lfValue v = lf_pop(state);
+    lf_setglobal(state, &v);
+}
+
+void lf_getsglobal(lfState *state, const char *key, int length) {
+    lf_pushstring(state, (char *)key, length);
+    lfValue v = lf_pop(state);
+    lf_getglobal(state, &v);
+}
+
+/* Only to be used with C strings, not ones from a proto's string table */
+void lf_setcsglobal(lfState *state, const char *key) {
     lf_pushstring(state, (char *)key, strlen(key));
     lfValue v = lf_pop(state);
     lf_setglobal(state, &v);
 }
 
-void lf_getsglobal(lfState *state, const char *key) {
+/* Only to be used with C strings, not ones from a proto's string table */
+void lf_getcsglobal(lfState *state, const char *key) {
     lf_pushstring(state, (char *)key, strlen(key));
     lfValue v = lf_pop(state);
     lf_getglobal(state, &v);
@@ -571,7 +585,8 @@ void lf_printvalue(const lfValue *value) {
             printf("%s", value->v.boolean ? "true" : "false");
             break;
         case LF_STRING:
-            printf("%s", lf_string(value)->string);
+            for (int i = 0; i < lf_string(value)->length; i++)
+                printf("%c", lf_string(value)->string[i]);
             break;
         case LF_ARRAY:
             printf("{");

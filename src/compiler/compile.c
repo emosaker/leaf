@@ -90,7 +90,7 @@ bool nodiscard(lfCompilerCtx *ctx, lfNode *node) {
 
 bool visit_string(lfCompilerCtx *ctx, lfLiteralNode *node) {
     if (ctx->discarded) return true;
-    emit_ins_e(&ctx->bb, OP_PUSHS, new_string(&ctx->bb, node->value.value, strlen(node->value.value)), node->lineno);
+    emit_ins_e(&ctx->bb, OP_PUSHS, new_string(&ctx->bb, node->value.value), node->lineno);
     ctx->top += 1;
     return true;
 }
@@ -186,7 +186,7 @@ bool visit_varaccess(lfCompilerCtx *ctx, lfVarAccessNode *node) {
     } else if (getupvalue(ctx, node->var.value, &uvindex)) {
         emit_ins_e(&ctx->bb, OP_GETUPVAL, uvindex, node->lineno);
     } else {
-        emit_ins_e(&ctx->bb, OP_GETGLOBAL, new_string(&ctx->bb, node->var.value, strlen(node->var.value)), node->lineno);
+        emit_ins_e(&ctx->bb, OP_GETGLOBAL, new_cstring(&ctx->bb, node->var.value, strlen(node->var.value)), node->lineno);
     }
     ctx->top += 1;
     return true;
@@ -234,7 +234,7 @@ bool visit_assign(lfCompilerCtx *ctx, lfAssignNode *node) {
     } else if (getupvalue(ctx, node->var.value, &uvindex)) {
         emit_ins_e(&ctx->bb, OP_SETUPVAL, uvindex, node->lineno);
     } else {
-        emit_ins_e(&ctx->bb, OP_SETGLOBAL, new_string(&ctx->bb, node->var.value, strlen(node->var.value)), node->lineno);
+        emit_ins_e(&ctx->bb, OP_SETGLOBAL, new_cstring(&ctx->bb, node->var.value, strlen(node->var.value)), node->lineno);
     }
     ctx->top -= 1;
     return true;
