@@ -3,8 +3,24 @@
  */
 
 #include <stdlib.h>
+#include "lib/array.h"
 #include "vm/value.h"
 #include "vm/builtins.h"
+
+void gco_deleter(lfGCObject **gco) {
+    switch ((*gco)->type) {
+        case LF_CLOSURE:
+            if (!((lfClosure *)*gco)->is_c)
+                lf_proto_deleter(&((lfClosure *)*gco)->f.lf.proto);
+            break;
+        case LF_ARRAY:
+            array_delete(&((lfValueArray *)*gco)->values);
+            break;
+        default:
+            break;
+    }
+    free(*gco);
+}
 
 lfState *lf_state_create(void) {
     lfState *state = malloc(sizeof(lfState));
@@ -16,8 +32,7 @@ lfState *lf_state_create(void) {
     state->strays = lf_valuemap_create(16); /* lfClosure -> lfValueArray map for upvalues that go out of scope */
     state->errored = false;
     state->upvalues = NULL;
-    state->gc_objects = NULL;
-    state->gray_objects = NULL;
+    state->gc_objects = array_new(lfGCObject *, gco_deleter);
     state->frame = array_new(lfCallFrame);
 
     /* register builtins */
@@ -32,8 +47,7 @@ void lf_state_delete(lfState *state) {
     state->globals = NULL;
     lf_valuemap_delete(&state->strays);
     state->strays = NULL;
-    while (state->gray_objects || state->gc_objects)
-        lf_gc_step(state);
+    array_delete(&state->gc_objects);
     array_delete(&state->frame);
     free(state->stack);
     free(state);

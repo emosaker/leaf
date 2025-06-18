@@ -32,9 +32,8 @@ typedef enum lfGCColor {
 } lfGCColor;
 
 #define LF_GCHEADER \
-    struct lfGCObject *next; \
     lfGCColor gc_color; \
-    lfValueType t;
+    lfValueType type;
 
 typedef struct lfGCObject {
     LF_GCHEADER;
@@ -75,8 +74,7 @@ typedef struct lfState {
 
     struct lfValue **upvalues;
 
-    lfGCObject *gc_objects;
-    lfGCObject *gray_objects;
+    lfArray(lfGCObject *) gc_objects;
 
     lfArray(lfCallFrame) frame;
 

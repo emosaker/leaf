@@ -45,11 +45,10 @@ void lf_pushint(lfState *state, uint64_t value) {
 
 lfString *alloc_string(lfState *state, int length) {
     lfString *s = malloc(sizeof(lfString) + length + 1);
-    s->t = LF_STRING;
+    s->type = LF_STRING;
     s->length = length;
     s->gc_color = LF_GCWHITE;
-    s->next = state->gc_objects;
-    state->gc_objects = (lfGCObject *)s;
+    array_push(&state->gc_objects, (lfGCObject *)s);
     return s;
 }
 
@@ -101,10 +100,9 @@ void lf_setupval(lfState *state, int index) {
 
 lfClosure *alloc_ccl(lfState *state) {
     lfClosure *cl = malloc(sizeof(lfClosure));
-    cl->t = LF_CLOSURE;
+    cl->type = LF_CLOSURE;
     cl->gc_color = LF_GCWHITE;
-    cl->next = state->gc_objects;
-    state->gc_objects = (lfGCObject *)cl;
+    array_push(&state->gc_objects, (lfGCObject *)cl);
     return cl;
 }
 
@@ -122,10 +120,9 @@ void lf_newccl(lfState *state, lfccl func, const char *name) {
 
 lfClosure *alloc_lfcl(lfState *state, int szupvalues) {
     lfClosure *cl = malloc(sizeof(lfClosure) + sizeof(lfValue *) * szupvalues);
-    cl->t = LF_CLOSURE;
+    cl->type = LF_CLOSURE;
     cl->gc_color = LF_GCWHITE;
-    cl->next = state->gc_objects;
-    state->gc_objects = (lfGCObject *)cl;
+    array_push(&state->gc_objects, (lfGCObject *)cl);
     return cl;
 }
 
@@ -153,10 +150,9 @@ const char *lf_clname(lfClosure *cl) {
 
 lfValueArray *alloc_array(lfState *state) {
     lfValueArray *arr = malloc(sizeof(lfValueArray));
-    arr->t = LF_ARRAY;
+    arr->type = LF_ARRAY;
     arr->gc_color = LF_GCWHITE;
-    arr->next = state->gc_objects;
-    state->gc_objects = (lfGCObject *)arr;
+    array_push(&state->gc_objects, (lfGCObject *)arr);
     return arr;
 }
 
