@@ -188,6 +188,8 @@ void lf_or(lfState *state);
 void lf_neg(lfState *state);
 void lf_not(lfState *state);
 
+void lf_index(lfState *state);
+
 const char *lf_typeof(const lfValue *value);
 void lf_printvalue(const lfValue *value);
 

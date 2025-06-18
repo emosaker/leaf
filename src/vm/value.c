@@ -562,6 +562,34 @@ void lf_not(lfState *state) {
     }
 }
 
+void lf_index(lfState *state) {
+    lfValue index = lf_pop(state);
+    lfValue object = lf_pop(state);
+    switch (object.type) {
+        case LF_ARRAY:
+            if (index.type != LF_INT) {
+                lf_errorf(state, "attempt to index array with %s", lf_typeof(&index));
+            }
+            if (index.v.integer < 0 || index.v.integer >= length(&lf_array(&object)->values)) {
+                lf_errorf(state, "index out of bounds");
+            }
+            lfValue v = lf_array(&object)->values[index.v.integer];
+            lf_push(state, &v);
+            break;
+        case LF_STRING:
+            if (index.type != LF_INT) {
+                lf_errorf(state, "attempt to index string with %s", lf_typeof(&index));
+            }
+            if (index.v.integer < 0 || index.v.integer >= lf_string(&object)->length) {
+                lf_errorf(state, "index out of bounds");
+            }
+            lf_pushstring(state, lf_string(&object)->string + index.v.integer, 1);
+            break;
+        default:
+            lf_errorf(state, "attempt to index object of type %s", lf_typeof(&object));
+    }
+}
+
 const char *lf_typeof(const lfValue *value) {
     switch (value->type) {
         case LF_NULL: return "null";

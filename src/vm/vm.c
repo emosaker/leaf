@@ -121,21 +121,9 @@ int lf_run(lfState *state) {
             case OP_SETUPVAL:
                 lf_setupval(state, INS_E(ins));
                 break;
-            case OP_INDEX: {
-                lfValue index = lf_pop(state);
-                lfValue object = lf_pop(state);
-                if (object.type != LF_ARRAY) {
-                    lf_errorf(state, "attempt to index object of type %s", lf_typeof(&object));
-                }
-                if (index.type != LF_INT) {
-                    lf_errorf(state, "attempt to index array with %s", lf_typeof(&index));
-                }
-                if (index.v.integer < 0 || index.v.integer >= length(&lf_array(&object)->values)) {
-                    lf_errorf(state, "index out of bounds");
-                }
-                lfValue v = lf_array(&object)->values[index.v.integer];
-                lf_push(state, &v);
-            } break;
+            case OP_INDEX:
+                lf_index(state);
+                break;
             case OP_ASSIGN:
                 state->base[INS_E(ins)] = lf_pop(state);
                 break;

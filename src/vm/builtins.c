@@ -6,7 +6,6 @@
 
 #include "lib/array.h"
 #include "vm/value.h"
-#include "vm/vm.h"
 #include "vm/builtins.h"
 
 int lf_print(lfState *state) {
