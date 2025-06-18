@@ -107,6 +107,13 @@ bool visit_int(lfCompilerCtx *ctx, lfLiteralNode *node) {
     return true;
 }
 
+bool visit_float(lfCompilerCtx *ctx, lfLiteralNode *node) {
+    if (ctx->discarded) return true;
+    double value = atof(node->value.value);
+    emit_ins_e(&ctx->bb, OP_PUSHF, new_f64(&ctx->bb, value), node->lineno);
+    return true;
+}
+
 bool visit_binop(lfCompilerCtx *ctx, lfBinaryOpNode *node) {
     if (!nodiscard(ctx, node->lhs)) return false;
     if (!nodiscard(ctx, node->rhs)) return false;
@@ -377,6 +384,7 @@ bool visit_compound(lfCompilerCtx *ctx, lfCompoundNode *node) {
 bool visit(lfCompilerCtx *ctx, lfNode *node) {
     switch (node->type) {
         case NT_INT: return visit_int(ctx, (lfLiteralNode *)node);
+        case NT_FLOAT: return visit_float(ctx, (lfLiteralNode *)node);
         case NT_STRING: return visit_string(ctx, (lfLiteralNode *)node);
         case NT_BINARYOP: return visit_binop(ctx, (lfBinaryOpNode *)node);
         case NT_UNARYOP: return visit_unop(ctx, (lfUnaryOpNode *)node);

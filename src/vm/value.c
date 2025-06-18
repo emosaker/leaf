@@ -44,6 +44,14 @@ void lf_pushint(lfState *state, uint64_t value) {
     };
 }
 
+void lf_pushfloat(lfState *state, double value) {
+    LF_CHECKTOP(state);
+    *state->top++ = (lfValue) {
+        .type = LF_FLOAT,
+        .v.floating = value
+    };
+}
+
 lfString *alloc_string(lfState *state, int length) {
     lfString *s = malloc(sizeof(lfString) + length + 1);
     s->type = LF_STRING;
@@ -175,7 +183,18 @@ void lf_add(lfState *state) {
         case LF_INT:
             if (rhs.type == LF_INT) {
                 lf_pushint(state, lhs.v.integer + rhs.v.integer);
-            } /* TODO: float handler */ else {
+            } else if (rhs.type == LF_FLOAT) {
+                lf_pushfloat(state, (double)lhs.v.integer + rhs.v.floating);
+            } else {
+                goto unsupported;
+            }
+            break;
+        case LF_FLOAT:
+            if (rhs.type == LF_INT) {
+                lf_pushfloat(state, lhs.v.floating + (double)rhs.v.integer);
+            } else if (rhs.type == LF_FLOAT) {
+                lf_pushfloat(state, lhs.v.floating + rhs.v.floating);
+            } else {
                 goto unsupported;
             }
             break;
@@ -204,7 +223,18 @@ void lf_sub(lfState *state) {
         case LF_INT:
             if (rhs.type == LF_INT) {
                 lf_pushint(state, lhs.v.integer - rhs.v.integer);
-            } /* TODO: float handler */ else {
+            } else if (rhs.type == LF_FLOAT) {
+                lf_pushfloat(state, (double)lhs.v.integer - rhs.v.floating);
+            } else {
+                goto unsupported;
+            }
+            break;
+        case LF_FLOAT:
+            if (rhs.type == LF_INT) {
+                lf_pushfloat(state, lhs.v.floating - (double)rhs.v.integer);
+            } else if (rhs.type == LF_FLOAT) {
+                lf_pushfloat(state, lhs.v.floating - rhs.v.floating);
+            } else {
                 goto unsupported;
             }
             break;
@@ -221,7 +251,18 @@ void lf_mul(lfState *state) {
         case LF_INT:
             if (rhs.type == LF_INT) {
                 lf_pushint(state, lhs.v.integer * rhs.v.integer);
-            } /* TODO: float handler */ else {
+            } else if (rhs.type == LF_FLOAT) {
+                lf_pushfloat(state, (double)lhs.v.integer * rhs.v.floating);
+            } else {
+                goto unsupported;
+            }
+            break;
+        case LF_FLOAT:
+            if (rhs.type == LF_INT) {
+                lf_pushfloat(state, lhs.v.floating * (double)rhs.v.integer);
+            } else if (rhs.type == LF_FLOAT) {
+                lf_pushfloat(state, lhs.v.floating * rhs.v.floating);
+            } else {
                 goto unsupported;
             }
             break;
@@ -237,8 +278,19 @@ void lf_div(lfState *state) {
     switch (lhs.type) {
         case LF_INT:
             if (rhs.type == LF_INT) {
-                lf_pushint(state, lhs.v.integer / rhs.v.integer);
-            } /* TODO: float handler */ else {
+                lf_pushfloat(state, (double)lhs.v.integer / (double)rhs.v.integer);
+            } else if (rhs.type == LF_FLOAT) {
+                lf_pushfloat(state, (double)lhs.v.integer / rhs.v.floating);
+            } else {
+                goto unsupported;
+            }
+            break;
+        case LF_FLOAT:
+            if (rhs.type == LF_INT) {
+                lf_pushfloat(state, lhs.v.floating / (double)rhs.v.integer);
+            } else if (rhs.type == LF_FLOAT) {
+                lf_pushfloat(state, lhs.v.floating / rhs.v.floating);
+            } else {
                 goto unsupported;
             }
             break;
@@ -495,6 +547,7 @@ const char *lf_typeof(const lfValue *value) {
     switch (value->type) {
         case LF_NULL: return "null";
         case LF_INT: return "int";
+        case LF_FLOAT: return "float";
         case LF_BOOL: return "bool";
         case LF_STRING: return "string";
         case LF_ARRAY: return "array";
@@ -510,6 +563,9 @@ void lf_printvalue(const lfValue *value) {
             break;
         case LF_INT:
             printf("%ld", value->v.integer);
+            break;
+        case LF_FLOAT:
+            printf("%lf", value->v.floating);
             break;
         case LF_BOOL:
             printf("%s", value->v.boolean ? "true" : "false");

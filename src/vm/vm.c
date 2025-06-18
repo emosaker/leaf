@@ -93,6 +93,9 @@ int lf_run(lfState *state) {
             case OP_PUSHLI:
                 lf_pushint(state, proto->ints[INS_E(ins)]);
                 break;
+            case OP_PUSHF:
+                lf_pushfloat(state, proto->floats[INS_E(ins)]);
+                break;
             case OP_PUSHS:
                 lf_pushstring(state, proto->strings[INS_E(ins)], strlen(proto->strings[INS_E(ins)]));
                 break;

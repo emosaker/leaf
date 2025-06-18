@@ -99,6 +99,9 @@ void print_instruction(const lfProto *proto, lfArray(lfLabel) labels, int *i) {
         case OP_PUSHLI:
             printf("pushlong %u (%lu)\n", INS_E(ins), proto->ints[INS_E(ins)]);
             break;
+        case OP_PUSHF:
+            printf("pushfloat %u (%lf)\n", INS_E(ins), proto->floats[INS_E(ins)]);
+            break;
         case OP_PUSHS:
             printf("pushstring %u", INS_E(ins));
             print_string_comment(proto->strings[INS_E(ins)]);

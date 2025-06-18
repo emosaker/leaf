@@ -20,6 +20,7 @@ void lf_proto_deleter(lfProto **proto) {
     free((*proto)->protos);
     free((*proto)->strings);
     free((*proto)->ints);
+    free((*proto)->floats);
     free((*proto)->code);
     free((*proto)->linenumbers);
     free((*proto));
@@ -32,6 +33,7 @@ lfBytecodeBuilder bytecodebuilder_init(lfBytecodeBuilder *bb) {
         .bytecode = array_new(uint8_t),
         .lines = array_new(int),
         .ints = array_new(uint64_t),
+        .floats = array_new(double),
         .strings = array_new(char *, string_deleter),
         .protos = array_new(lfProto *, lf_proto_deleter)
     };
@@ -41,6 +43,7 @@ lfBytecodeBuilder bytecodebuilder_init(lfBytecodeBuilder *bb) {
 void bytecodebuilder_restore(lfBytecodeBuilder *bb, lfBytecodeBuilder old, bool retain) {
     if (bb->bytecode != NULL) array_delete(&bb->bytecode);
     if (bb->ints != NULL) array_delete(&bb->ints);
+    if (bb->floats != NULL) array_delete(&bb->floats);
     if (bb->lines != NULL) array_delete(&bb->lines);
     if (bb->strings != NULL) {
         if (retain) deleter(&bb->strings) = NULL;
@@ -97,6 +100,11 @@ uint32_t new_u64(lfBytecodeBuilder *bb, uint64_t value) {
     return length(&bb->ints) - 1;
 }
 
+uint32_t new_f64(lfBytecodeBuilder *bb, double value) {
+    array_push(&bb->floats, value);
+    return length(&bb->floats) - 1;
+}
+
 uint32_t new_string(lfBytecodeBuilder *bb, char *value, int length) {
     for (int i = 0; i < length(&bb->strings); i++) { /* TODO: Replace with a map for O(1) insertion */
         if (!strncmp(bb->strings[i], value, length))
@@ -121,6 +129,8 @@ lfProto *bytecodebuilder_allocproto(lfBytecodeBuilder *bb, char *name, int szupv
     proto->szstrings = length(&bb->strings);
     proto->ints = malloc(sizeof(uint64_t) * length(&bb->ints));
     proto->szints = length(&bb->ints);
+    proto->floats = malloc(sizeof(double) * length(&bb->floats));
+    proto->szfloats = length(&bb->floats);
     proto->linenumbers = malloc(sizeof(int) * length(&bb->lines));
     proto->szlinenumbers = length(&bb->lines);
     proto->szupvalues = szupvalues;
@@ -130,6 +140,7 @@ lfProto *bytecodebuilder_allocproto(lfBytecodeBuilder *bb, char *name, int szupv
     memcpy(proto->protos, bb->protos, sizeof(lfProto *) * length(&bb->protos));
     memcpy(proto->strings, bb->strings, sizeof(char *) * length(&bb->strings));
     memcpy(proto->ints, bb->ints, sizeof(uint64_t) * length(&bb->ints));
+    memcpy(proto->floats, bb->floats, sizeof(double) * length(&bb->floats));
     memcpy(proto->linenumbers, bb->lines, sizeof(int) * length(&bb->lines));
 
     return proto;
@@ -141,6 +152,8 @@ lfProto *lf_proto_clone(lfProto *proto) {
     new->szstrings = proto->szstrings;
     new->ints = malloc(sizeof(uint64_t) * proto->szints);
     new->szints = proto->szints;
+    new->floats = malloc(sizeof(double) * proto->szfloats);
+    new->szfloats = proto->szfloats;
     new->protos = malloc(sizeof(lfProto *) * proto->szprotos);
     new->szprotos = proto->szprotos;
     new->code = malloc(sizeof(uint32_t) * proto->szcode);
@@ -162,6 +175,7 @@ lfProto *lf_proto_clone(lfProto *proto) {
     }
 
     memcpy(new->ints, proto->ints, proto->szints * sizeof(uint64_t));
+    memcpy(new->floats, proto->floats, proto->szfloats * sizeof(double));
     memcpy(new->code, proto->code, proto->szcode * sizeof(uint32_t));
     memcpy(new->linenumbers, proto->linenumbers, proto->szlinenumbers * sizeof(int));
 

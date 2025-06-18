@@ -19,6 +19,7 @@
 typedef enum lfValueType {
     LF_NULL,
     LF_INT,
+    LF_FLOAT,
     LF_BOOL,
     /* GC objects */
     LF_CLOSURE,
@@ -116,6 +117,7 @@ typedef struct lfValue {
     lfValueType type;
     union {
         uint64_t integer;
+        double floating;
         bool boolean;
         lfGCObject *gco;
     } v;
@@ -146,6 +148,7 @@ void lf_getsglobal(lfState *state, const char *key);
 
 /* stack */
 void lf_pushint(lfState *state, uint64_t value);
+void lf_pushfloat(lfState *state, double value);
 void lf_pushstring(lfState *state, char *value, int length);
 void lf_pushbool(lfState *state, bool value);
 void lf_pushnull(lfState *state);
