@@ -50,6 +50,11 @@ void lf_getcsglobal(lfState *state, const char *key) {
     lf_getglobal(state, &v);
 }
 
+void lf_pushoff(lfState *state, int offset) {
+    LF_CHECKTOP(state);
+    lf_push(state, state->base + offset);
+}
+
 void lf_pushint(lfState *state, uint64_t value) {
     LF_CHECKTOP(state);
     *state->top++ = (lfValue) {

@@ -149,12 +149,14 @@ void lf_setcsglobal(lfState *state, const char *key);
 void lf_getcsglobal(lfState *state, const char *key);
 
 /* stack */
+void lf_pushoff(lfState *state, int offset);
 void lf_pushint(lfState *state, uint64_t value);
 void lf_pushfloat(lfState *state, double value);
 void lf_pushstring(lfState *state, char *value, int length);
 void lf_pushbool(lfState *state, bool value);
 void lf_pushnull(lfState *state);
 void lf_pusharray(lfState *state, int size);
+
 lfValue lf_pop(lfState *state);
 void lf_push(lfState *state, const lfValue *value);
 void lf_getupval(lfState *state, int index);

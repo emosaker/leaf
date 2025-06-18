@@ -38,6 +38,8 @@ lfState *lf_state_create(void) {
     /* register builtins */
     lf_newccl(state, lf_print, "print");
     lf_setcsglobal(state, "print");
+    lf_newccl(state, lf_input, "input");
+    lf_setcsglobal(state, "input");
 
     return state;
 }
