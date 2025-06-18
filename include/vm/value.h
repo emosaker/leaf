@@ -23,7 +23,9 @@ typedef enum lfValueType {
     /* GC objects */
     LF_CLOSURE,
     LF_STRING,
-    LF_ARRAY
+    LF_ARRAY,
+    /* count */
+    LF_TCOUNT
 } lfValueType;
 
 typedef enum lfGCColor {
@@ -52,7 +54,7 @@ typedef struct lfGCObject {
 
 #define LF_STACKSIZE(STATE) ((STATE)->top - (STATE)->base)
 
-typedef lfArray(struct lfValueBucket *) lfValueMap;
+typedef lfArray(struct lfKeyValuePair) lfValueMap;
 
 typedef struct lfCallFrame {
     struct lfClosure *cl;
@@ -119,12 +121,10 @@ typedef struct lfValue {
     } v;
 } lfValue;
 
-typedef struct lfValueBucket {
-    struct lfValueBucket *next;
-    struct lfValueBucket *previous;
+typedef struct lfKeyValuePair {
     lfValue key;
     lfValue value;
-} lfValueBucket;
+} lfKeyValuePair;
 
 /* value map */
 lfValueMap lf_valuemap_create(int size);

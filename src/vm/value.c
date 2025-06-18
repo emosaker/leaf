@@ -175,6 +175,7 @@ const char *lf_typeof(const lfValue *value) {
         case LF_STRING: return "string";
         case LF_ARRAY: return "array";
         case LF_CLOSURE: return "closure";
+        default: return "invalid";
     }
 }
 
@@ -216,5 +217,7 @@ void lf_printvalue(const lfValue *value) {
                 }
             }
             break;
+        default:
+            printf("<invalid>");
     }
 }
