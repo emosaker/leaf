@@ -198,26 +198,7 @@ int lf_run(lfState *state) {
             case OP_EQ: {
                 lfValue rhs = lf_pop(state);
                 lfValue lhs = lf_pop(state);
-                switch (lhs.type) {
-                    case LF_INT:
-                        if (rhs.type == LF_INT) {
-                            lf_pushbool(state, lhs.v.integer == rhs.v.integer);
-                        } /* TODO: float handler */ else {
-                            lf_pushbool(state, false);
-                        }
-                        break;
-                    case LF_STRING:
-                        if (rhs.type != LF_STRING) {
-                            lf_pushbool(state, false);
-                        } else if (lf_string(&lhs)->length != lf_string(&rhs)->length) {
-                            lf_pushbool(state, false);
-                        } else {
-                            lf_pushbool(state, !strncmp(lf_string(&lhs)->string, lf_string(&rhs)->string, lf_string(&lhs)->length));
-                        }
-                        break;
-                    default:
-                        lf_pushbool(state, false);
-                }
+                lf_pushbool(state, lf_valuemap_compare_values(&lhs, &rhs));
             } break;
 
             case OP_JMP:
