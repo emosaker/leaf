@@ -13,6 +13,11 @@ void lf_valuemap_delete(lfValueMap *map) {
     array_delete(map);
 }
 
+static inline int hash_ptr_mix(size_t a, size_t b) {
+    size_t h = a ^ (b + 0x9e3779b97f4a7c15 + (a << 6) + (a >> 2));
+    return (int)(h & 0x7FFFFFFF);
+}
+
 int lf_valuemap_compute_hash(const lfValue *value) {
     switch (value->type) {
         case LF_INT:
@@ -28,8 +33,21 @@ int lf_valuemap_compute_hash(const lfValue *value) {
         }
         case LF_NULL:
             return 0;
-        case LF_CLOSURE:
-            return (int)(size_t)lf_cl(value)->f.c.func;
+        case LF_CLOSURE: {
+            const lfClosure *cl = lf_cl(value);
+            if (cl->is_c) {
+                return (int)((size_t)cl->f.c.func & 0x7FFFFFFF);
+            } else {
+                size_t base = (size_t)cl->f.lf.proto;
+                int hash = (int)(base & 0x7FFFFFFF);
+                /* TODO: Add cycle detection before uncommenting this
+                for (int i = 0; i < cl->f.lf.proto->szupvalues; i++) {
+                    int uv_hash = lf_valuemap_compute_hash(cl->f.lf.upvalues[i]);
+                    hash ^= uv_hash + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+                } */
+                return hash;
+            }
+        }
         default:
             return 0; /* unhashable for now :( */
     }
@@ -78,6 +96,7 @@ bool lf_valuemap_lookup(const lfValueMap *map, const lfValue *key, lfValue *out)
     int hash = lf_valuemap_compute_hash(key) % size(map);
     lfKeyValuePair b = (*map)[hash];
     if (b.value.type == LF_TCOUNT) return false;
+    if (!lf_valuemap_compare_values(&b.key, key)) return false;
     *out = b.value;
     return true;
 }
