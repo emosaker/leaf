@@ -61,18 +61,18 @@ lfArray(lfLabel) mark_labels(const lfProto *proto) {
     return labels;
 }
 
-void print_string_comment(const char *string) {
+void print_string_comment(const char *string, int len) {
     char buf[30];
-    if (strlen(string) >= 26) {
+    if (len >= 26) {
         memcpy(buf, string, 26);
         buf[26] = '.';
         buf[27] = '.';
         buf[28] = '.';
         buf[29] = 0;
     } else {
-        memcpy(buf, string, strlen(string));
-        buf[strlen(string)] = '"';
-        buf[strlen(string) + 1] = 0;
+        memcpy(buf, string, len);
+        buf[len] = '"';
+        buf[len + 1] = 0;
     }
     printf(" ; \"%s", buf);
 }
@@ -104,7 +104,7 @@ void print_instruction(const lfProto *proto, lfArray(lfLabel) labels, int *i) {
             break;
         case OP_PUSHS:
             printf("pushstring %u", INS_E(ins));
-            print_string_comment(proto->strings[INS_E(ins)]);
+            print_string_comment(proto->strings[INS_E(ins)], proto->string_lengths[INS_E(ins)]);
             printf("\n");
             break;
         case OP_PUSHNULL:
@@ -119,12 +119,12 @@ void print_instruction(const lfProto *proto, lfArray(lfLabel) labels, int *i) {
 
         case OP_GETGLOBAL:
             printf("getglob %u", INS_E(ins));
-            print_string_comment(proto->strings[INS_E(ins)]);
+            print_string_comment(proto->strings[INS_E(ins)], proto->string_lengths[INS_E(ins)]);
             printf("\n");
             break;
         case OP_SETGLOBAL:
             printf("setglob %u", INS_E(ins));
-            print_string_comment(proto->strings[INS_E(ins)]);
+            print_string_comment(proto->strings[INS_E(ins)], proto->string_lengths[INS_E(ins)]);
             printf("\n");
             break;
         case OP_GETUPVAL:
