@@ -2,6 +2,7 @@
  * This file is part of the leaf programming language
  */
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -165,6 +166,329 @@ void lf_pusharray(lfState *state, int size) {
         .type = LF_ARRAY,
         .v.gco = (lfGCObject *)arr
     };
+}
+
+void lf_add(lfState *state) {
+    lfValue rhs = lf_pop(state);
+    lfValue lhs = lf_pop(state);
+    switch (lhs.type) {
+        case LF_INT:
+            if (rhs.type == LF_INT) {
+                lf_pushint(state, lhs.v.integer + rhs.v.integer);
+            } /* TODO: float handler */ else {
+                goto unsupported;
+            }
+            break;
+        case LF_STRING:
+            if (rhs.type != LF_STRING) {
+                goto unsupported;
+            }
+            int len = lf_string(&lhs)->length + lf_string(&rhs)->length;
+            char *concatenated = malloc(len + 1);
+            memcpy(concatenated, lf_string(&lhs)->string, lf_string(&lhs)->length);
+            memcpy(concatenated + lf_string(&lhs)->length, lf_string(&rhs)->string, lf_string(&rhs)->length);
+            concatenated[len] = 0;
+            lf_pushstring(state, concatenated, len);
+            free(concatenated);
+            break;
+        unsupported:
+        default:
+            lf_errorf(state, "unsupported types for addition: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
+    }
+}
+
+void lf_sub(lfState *state) {
+    lfValue rhs = lf_pop(state);
+    lfValue lhs = lf_pop(state);
+    switch (lhs.type) {
+        case LF_INT:
+            if (rhs.type == LF_INT) {
+                lf_pushint(state, lhs.v.integer - rhs.v.integer);
+            } /* TODO: float handler */ else {
+                goto unsupported;
+            }
+            break;
+        unsupported:
+        default:
+            lf_errorf(state, "unsupported types for subtraction: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
+    }
+}
+
+void lf_mul(lfState *state) {
+    lfValue rhs = lf_pop(state);
+    lfValue lhs = lf_pop(state);
+    switch (lhs.type) {
+        case LF_INT:
+            if (rhs.type == LF_INT) {
+                lf_pushint(state, lhs.v.integer * rhs.v.integer);
+            } /* TODO: float handler */ else {
+                goto unsupported;
+            }
+            break;
+        unsupported:
+        default:
+            lf_errorf(state, "unsupported types for multiplication: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
+    }
+}
+
+void lf_div(lfState *state) {
+    lfValue rhs = lf_pop(state);
+    lfValue lhs = lf_pop(state);
+    switch (lhs.type) {
+        case LF_INT:
+            if (rhs.type == LF_INT) {
+                lf_pushint(state, lhs.v.integer / rhs.v.integer);
+            } /* TODO: float handler */ else {
+                goto unsupported;
+            }
+            break;
+        unsupported:
+        default:
+            lf_errorf(state, "unsupported types for division: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
+    }
+}
+
+void lf_pow(lfState *state) {
+    lfValue rhs = lf_pop(state);
+    lfValue lhs = lf_pop(state);
+    switch (lhs.type) {
+        case LF_INT:
+            if (rhs.type == LF_INT) {
+                lf_pushint(state, (uint64_t)pow((double)lhs.v.integer, (double)rhs.v.integer));
+            } /* TODO: float handler */ else {
+                goto unsupported;
+            }
+            break;
+        unsupported:
+        default:
+            lf_errorf(state, "unsupported types for exponents: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
+    }
+}
+
+void lf_eq(lfState *state) {
+    lfValue rhs = lf_pop(state);
+    lfValue lhs = lf_pop(state);
+    lf_pushbool(state, lf_valuemap_compare_values(&lhs, &rhs));
+}
+
+void lf_ne(lfState *state) {
+    lfValue rhs = lf_pop(state);
+    lfValue lhs = lf_pop(state);
+    lf_pushbool(state, !lf_valuemap_compare_values(&lhs, &rhs));
+}
+
+void lf_lt(lfState *state) {
+    lfValue rhs = lf_pop(state);
+    lfValue lhs = lf_pop(state);
+    switch (lhs.type) {
+        case LF_INT:
+            if (rhs.type == LF_INT) {
+                lf_pushbool(state, lhs.v.integer < rhs.v.integer);
+            } /* TODO: float handler */ else {
+                goto unsupported;
+            }
+            break;
+        unsupported:
+        default:
+            lf_errorf(state, "unsupported types for comparison: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
+    }
+}
+
+void lf_gt(lfState *state) {
+    lfValue rhs = lf_pop(state);
+    lfValue lhs = lf_pop(state);
+    switch (lhs.type) {
+        case LF_INT:
+            if (rhs.type == LF_INT) {
+                lf_pushbool(state, lhs.v.integer > rhs.v.integer);
+            } /* TODO: float handler */ else {
+                goto unsupported;
+            }
+            break;
+        unsupported:
+        default:
+            lf_errorf(state, "unsupported types for comparison: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
+    }
+}
+
+void lf_le(lfState *state) {
+    lfValue rhs = lf_pop(state);
+    lfValue lhs = lf_pop(state);
+    switch (lhs.type) {
+        case LF_INT:
+            if (rhs.type == LF_INT) {
+                lf_pushbool(state, lhs.v.integer <= rhs.v.integer);
+            } /* TODO: float handler */ else {
+                goto unsupported;
+            }
+            break;
+        unsupported:
+        default:
+            lf_errorf(state, "unsupported types for comparison: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
+    }
+}
+
+void lf_ge(lfState *state) {
+    lfValue rhs = lf_pop(state);
+    lfValue lhs = lf_pop(state);
+    switch (lhs.type) {
+        case LF_INT:
+            if (rhs.type == LF_INT) {
+                lf_pushbool(state, lhs.v.integer >= rhs.v.integer);
+            } /* TODO: float handler */ else {
+                goto unsupported;
+            }
+            break;
+        unsupported:
+        default:
+            lf_errorf(state, "unsupported types for comparison: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
+    }
+}
+
+void lf_band(lfState *state) {
+    lfValue rhs = lf_pop(state);
+    lfValue lhs = lf_pop(state);
+    switch (lhs.type) {
+        case LF_INT:
+            if (rhs.type == LF_INT) {
+                lf_pushint(state, lhs.v.integer & rhs.v.integer);
+            } /* TODO: float handler */ else {
+                goto unsupported;
+            }
+            break;
+        unsupported:
+        default:
+            lf_errorf(state, "unsupported types for bitwise operation: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
+    }
+}
+
+void lf_bor(lfState *state) {
+    lfValue rhs = lf_pop(state);
+    lfValue lhs = lf_pop(state);
+    switch (lhs.type) {
+        case LF_INT:
+            if (rhs.type == LF_INT) {
+                lf_pushint(state, lhs.v.integer | rhs.v.integer);
+            } /* TODO: float handler */ else {
+                goto unsupported;
+            }
+            break;
+        unsupported:
+        default:
+            lf_errorf(state, "unsupported types for bitwise operation: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
+    }
+}
+
+void lf_bxor(lfState *state) {
+    lfValue rhs = lf_pop(state);
+    lfValue lhs = lf_pop(state);
+    switch (lhs.type) {
+        case LF_INT:
+            if (rhs.type == LF_INT) {
+                lf_pushint(state, lhs.v.integer ^ rhs.v.integer);
+            } /* TODO: float handler */ else {
+                goto unsupported;
+            }
+            break;
+        unsupported:
+        default:
+            lf_errorf(state, "unsupported types for bitwise operation: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
+    }
+}
+
+void lf_blsh(lfState *state) {
+    lfValue rhs = lf_pop(state);
+    lfValue lhs = lf_pop(state);
+    switch (lhs.type) {
+        case LF_INT:
+            if (rhs.type == LF_INT) {
+                lf_pushint(state, lhs.v.integer << rhs.v.integer);
+            } /* TODO: float handler */ else {
+                goto unsupported;
+            }
+            break;
+        unsupported:
+        default:
+            lf_errorf(state, "unsupported types for bitwise operation: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
+    }
+}
+
+void lf_brsh(lfState *state) {
+    lfValue rhs = lf_pop(state);
+    lfValue lhs = lf_pop(state);
+    switch (lhs.type) {
+        case LF_INT:
+            if (rhs.type == LF_INT) {
+                lf_pushint(state, lhs.v.integer >> rhs.v.integer);
+            } /* TODO: float handler */ else {
+                goto unsupported;
+            }
+            break;
+        unsupported:
+        default:
+            lf_errorf(state, "unsupported types for bitwise operation: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
+    }
+}
+
+void lf_and(lfState *state) {
+    lfValue rhs = lf_pop(state);
+    lfValue lhs = lf_pop(state);
+    switch (lhs.type) {
+        case LF_INT:
+            if (rhs.type == LF_INT) {
+                lf_pushbool(state, lhs.v.integer && rhs.v.integer);
+            } /* TODO: float handler */ else {
+                goto unsupported;
+            }
+            break;
+        unsupported:
+        default:
+            lf_errorf(state, "unsupported types for comparison: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
+    }
+}
+
+void lf_or(lfState *state) {
+    lfValue rhs = lf_pop(state);
+    lfValue lhs = lf_pop(state);
+    switch (lhs.type) {
+        case LF_INT:
+            if (rhs.type == LF_INT) {
+                lf_pushbool(state, lhs.v.integer || rhs.v.integer);
+            } /* TODO: float handler */ else {
+                goto unsupported;
+            }
+            break;
+        unsupported:
+        default:
+            lf_errorf(state, "unsupported types for comparison: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
+    }
+}
+
+void lf_neg(lfState *state) {
+    lfValue v = lf_pop(state);
+    switch (v.type) {
+        case LF_INT:
+            lf_pushint(state, -v.v.integer);
+            break;
+        unsupported:
+        default:
+            lf_errorf(state, "unsupported type for negation: %s and %s", lf_typeof(&v));
+    }
+}
+
+void lf_not(lfState *state) {
+    lfValue v = lf_pop(state);
+    switch (v.type) {
+        case LF_INT:
+            lf_pushbool(state, !v.v.integer);
+            break;
+        case LF_BOOL:
+            lf_pushbool(state, !v.v.boolean);
+            break;
+        unsupported:
+        default:
+            lf_errorf(state, "unsupported type for comparison: %s and %s", lf_typeof(&v));
+    }
 }
 
 const char *lf_typeof(const lfValue *value) {

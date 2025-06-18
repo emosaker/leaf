@@ -37,6 +37,8 @@ set(LEAF_INTERPRETER_SOURCES
 add_executable(leafc src/leafc.c ${LEAF_COMPILER_SOURCES})
 add_executable(leaf src/leaf.c ${LEAF_INTERPRETER_SOURCES})
 
+target_link_libraries(leaf m)
+
 target_include_directories(leafc PRIVATE include "${CMAKE_SOURCE_DIR}/include")
 target_include_directories(leaf PRIVATE include "${CMAKE_SOURCE_DIR}/include")
 

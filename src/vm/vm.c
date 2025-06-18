@@ -151,55 +151,63 @@ int lf_run(lfState *state) {
                 array_delete(&values);
             } break;
 
-            case OP_ADD: {
-                lfValue rhs = lf_pop(state);
-                lfValue lhs = lf_pop(state);
-                switch (lhs.type) {
-                    case LF_INT:
-                        if (rhs.type == LF_INT) {
-                            lf_pushint(state, lhs.v.integer + rhs.v.integer);
-                        } /* TODO: float handler */ else {
-                            goto unsupported_add;
-                        }
-                        break;
-                    case LF_STRING:
-                        if (rhs.type != LF_STRING) {
-                            goto unsupported_add;
-                        }
-                        int len = lf_string(&lhs)->length + lf_string(&rhs)->length;
-                        char *concatenated = malloc(len + 1);
-                        memcpy(concatenated, lf_string(&lhs)->string, lf_string(&lhs)->length);
-                        memcpy(concatenated + lf_string(&lhs)->length, lf_string(&rhs)->string, lf_string(&rhs)->length);
-                        concatenated[len] = 0;
-                        lf_pushstring(state, concatenated, len);
-                        free(concatenated);
-                        break;
-                    unsupported_add:
-                    default:
-                        lf_errorf(state, "unsupported types for addition: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
-                }
-            } break;
-            case OP_LT: {
-                lfValue rhs = lf_pop(state);
-                lfValue lhs = lf_pop(state);
-                switch (lhs.type) {
-                    case LF_INT:
-                        if (rhs.type == LF_INT) {
-                            lf_pushint(state, lhs.v.integer < rhs.v.integer);
-                        } /* TODO: float handler */ else {
-                            goto unsupported_lt;
-                        }
-                        break;
-                    unsupported_lt:
-                    default:
-                        lf_errorf(state, "unsupported types for comparison: %s and %s", lf_typeof(&lhs), lf_typeof(&rhs));
-                }
-            } break;
-            case OP_EQ: {
-                lfValue rhs = lf_pop(state);
-                lfValue lhs = lf_pop(state);
-                lf_pushbool(state, lf_valuemap_compare_values(&lhs, &rhs));
-            } break;
+            case OP_ADD:
+                lf_add(state);
+                break;
+            case OP_SUB:
+                lf_sub(state);
+                break;
+            case OP_MUL:
+                lf_mul(state);
+                break;
+            case OP_DIV:
+                lf_div(state);
+                break;
+            case OP_POW:
+                lf_pow(state);
+                break;
+
+            case OP_EQ:
+                lf_eq(state);
+                break;
+            case OP_NE:
+                lf_ne(state);
+                break;
+            case OP_LT:
+                lf_lt(state);
+                break;
+            case OP_GT:
+                lf_gt(state);
+                break;
+            case OP_LE:
+                lf_le(state);
+                break;
+            case OP_GE:
+                lf_ge(state);
+                break;
+
+            case OP_BAND:
+                lf_band(state);
+                break;
+            case OP_BOR:
+                lf_bor(state);
+                break;
+            case OP_BXOR:
+                lf_bxor(state);
+                break;
+            case OP_BLSH:
+                lf_blsh(state);
+                break;
+            case OP_BRSH:
+                lf_brsh(state);
+                break;
+
+            case OP_AND:
+                lf_and(state);
+                break;
+            case OP_OR:
+                lf_or(state);
+                break;
 
             case OP_JMP:
                 i += INS_E(ins) / 4;

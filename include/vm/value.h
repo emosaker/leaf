@@ -160,6 +160,27 @@ void lf_newccl(lfState *state, lfccl func, const char *name);
 void lf_newlfcl(lfState *state, lfProto *proto);
 const char *lf_clname(lfClosure *cl);
 
+void lf_add(lfState *state);
+void lf_sub(lfState *state);
+void lf_mul(lfState *state);
+void lf_div(lfState *state);
+void lf_pow(lfState *state);
+void lf_eq(lfState *state);
+void lf_ne(lfState *state);
+void lf_lt(lfState *state);
+void lf_gt(lfState *state);
+void lf_le(lfState *state);
+void lf_ge(lfState *state);
+void lf_band(lfState *state);
+void lf_bor(lfState *state);
+void lf_bxor(lfState *state);
+void lf_blsh(lfState *state);
+void lf_brsh(lfState *state);
+void lf_and(lfState *state);
+void lf_or(lfState *state);
+void lf_neg(lfState *state);
+void lf_not(lfState *state);
+
 const char *lf_typeof(const lfValue *value);
 void lf_printvalue(const lfValue *value);
 
