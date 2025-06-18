@@ -72,7 +72,7 @@ void lf_pushfloat(lfState *state, double value) {
 }
 
 lfString *alloc_string(lfState *state, int length) {
-    lfString *s = malloc(sizeof(lfString) + length + 1);
+    lfString *s = malloc(sizeof(lfString) + length);
     s->type = LF_STRING;
     s->length = length;
     s->gc_color = LF_GCWHITE;
@@ -84,7 +84,6 @@ void lf_pushstring(lfState *state, char *value, int length) {
     LF_CHECKTOP(state);
     lfString *s = alloc_string(state, length);
     memcpy(s->string, value, length);
-    s->string[length] = 0;
     *state->top++ = (lfValue) {
         .type = LF_STRING,
         .v.gco = (lfGCObject *)s
@@ -193,6 +192,49 @@ void lf_pusharray(lfState *state, int size) {
         .type = LF_ARRAY,
         .v.gco = (lfGCObject *)arr
     };
+}
+
+uint64_t lf_intvalue(lfState *state, int offset) {
+    return state->base[offset].v.integer;
+}
+
+double lf_floatvalue(lfState *state, int offset) {
+    return state->base[offset].v.floating;
+}
+
+char *lf_stringvalue(lfState *state, int offset, int *length) {
+    lfString *s = lf_string(state->base + offset);
+    *length = s->length;
+    return s->string;
+}
+
+bool lf_boolvalue(lfState *state, int offset) {
+    return state->base[offset].v.boolean;
+}
+
+lfValueArray *lf_arrayvalue(lfState *state, int offset) {
+    return lf_array(state->base + offset);
+}
+
+void lf_checkargs(lfState *state, int nargs) {
+    if (LF_STACKSIZE(state) < nargs) {
+        lf_errorf(state, "too few arguments passed to function %s. %d expected, got %d", lf_clname(lf_current(state)), nargs, LF_STACKSIZE(state));
+    }
+}
+
+void lf_checkargtype(lfState *state, int arg, lfValueType type) {
+    if (LF_STACKSIZE(state) <= arg) {
+        lf_errorf(state, "too few arguments passed to function %s", lf_clname(lf_current(state)));
+    }
+    if (state->base[arg].type != type) {
+        lf_errorf(state, "invalid argument #%d, expected %s, got %s", arg + 1, lf_typename(type), lf_clname(lf_current(state)));
+    }
+}
+
+void lf_pushto(lfState *state, int offset) {
+    lfValueArray *arr = lf_array(state->base + offset);
+    lfValue v = lf_pop(state);
+    array_push(&arr->values, v);
 }
 
 void lf_add(lfState *state) {
@@ -590,8 +632,8 @@ void lf_index(lfState *state) {
     }
 }
 
-const char *lf_typeof(const lfValue *value) {
-    switch (value->type) {
+const char *lf_typename(lfValueType type) {
+    switch (type) {
         case LF_NULL: return "null";
         case LF_INT: return "int";
         case LF_FLOAT: return "float";
@@ -601,6 +643,10 @@ const char *lf_typeof(const lfValue *value) {
         case LF_CLOSURE: return "closure";
         default: return "invalid";
     }
+}
+
+const char *lf_typeof(const lfValue *value) {
+    return lf_typename(value->type);
 }
 
 void lf_printvalue(const lfValue *value) {

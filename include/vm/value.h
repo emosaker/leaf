@@ -139,6 +139,7 @@ bool lf_valuemap_compare_values(const lfValue *lhs, const lfValue *rhs);
 /* state */
 lfState *lf_state_create(void);
 void lf_state_delete(lfState *state);
+lfClosure *lf_current(lfState *state);
 
 /* globals */
 void lf_setglobal(lfState *state, const lfValue *key);
@@ -156,6 +157,17 @@ void lf_pushstring(lfState *state, char *value, int length);
 void lf_pushbool(lfState *state, bool value);
 void lf_pushnull(lfState *state);
 void lf_pusharray(lfState *state, int size);
+
+uint64_t lf_intvalue(lfState *state, int offset);
+double lf_floatvalue(lfState *state, int offset);
+char *lf_stringvalue(lfState *state, int offset, int *length);
+bool lf_boolvalue(lfState *state, int offset);
+lfValueArray *lf_arrayvalue(lfState *state, int offset);
+
+void lf_checkargs(lfState *state, int nargs);
+void lf_checkargtype(lfState *state, int arg, lfValueType type);
+
+void lf_pushto(lfState *state, int offset);
 
 lfValue lf_pop(lfState *state);
 void lf_push(lfState *state, const lfValue *value);
@@ -190,6 +202,7 @@ void lf_not(lfState *state);
 
 void lf_index(lfState *state);
 
+const char *lf_typename(lfValueType type);
 const char *lf_typeof(const lfValue *value);
 void lf_printvalue(const lfValue *value);
 

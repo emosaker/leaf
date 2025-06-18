@@ -41,6 +41,29 @@ lfState *lf_state_create(void) {
     lf_newccl(state, lf_input, "input");
     lf_setcsglobal(state, "input");
 
+    lf_newccl(state, lf_arr_length, "length");
+    lf_setcsglobal(state, "length");
+    lf_newccl(state, lf_arr_push, "push");
+    lf_setcsglobal(state, "push");
+    lf_newccl(state, lf_arr_pop, "pop");
+    lf_setcsglobal(state, "pop");
+
+    lf_newccl(state, lf_str_split, "split");
+    lf_setcsglobal(state, "split");
+    lf_newccl(state, lf_str_contains, "contain");
+    lf_setcsglobal(state, "contains");
+
+    lf_newccl(state, lf_toint, "int");
+    lf_setcsglobal(state, "int");
+    lf_newccl(state, lf_tostring, "string");
+    lf_setcsglobal(state, "string");
+    lf_newccl(state, lf_toboolean, "boolean");
+    lf_setcsglobal(state, "boolean");
+    lf_newccl(state, lf_tofloat, "float");
+    lf_setcsglobal(state, "float");
+    lf_newccl(state, lf_toarray, "array");
+    lf_setcsglobal(state, "array");
+
     return state;
 }
 
@@ -53,4 +76,8 @@ void lf_state_delete(lfState *state) {
     array_delete(&state->frame);
     free(state->stack);
     free(state);
+}
+
+lfClosure *lf_current(lfState *state) {
+    return state->frame[length(&state->frame)].cl;
 }

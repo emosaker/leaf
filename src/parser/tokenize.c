@@ -310,7 +310,6 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                         return NULL;
                     }
                     i += 1;
-                    array_push(&buffer, 0);
                     lfToken tok = (lfToken) {
                         .type = TT_STRING,
                         .value = buffer,

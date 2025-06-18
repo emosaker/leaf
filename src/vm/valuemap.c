@@ -18,14 +18,14 @@ static inline int hash_ptr_mix(size_t a, size_t b) {
     return (int)(h & 0x7FFFFFFF);
 }
 
-int lf_valuemap_compute_hash(const lfValue *value) {
+unsigned int lf_valuemap_compute_hash(const lfValue *value) {
     switch (value->type) {
         case LF_INT:
             return value->v.integer;
         case LF_BOOL:
             return value->v.boolean;
         case LF_STRING: {
-            int hash = 0;
+            unsigned int hash = 0;
             for (int i = 0; i < lf_string(value)->length; i++) {
                 hash = (31 * hash + lf_string(value)->string[i]);
             }
@@ -36,10 +36,10 @@ int lf_valuemap_compute_hash(const lfValue *value) {
         case LF_CLOSURE: {
             const lfClosure *cl = lf_cl(value);
             if (cl->is_c) {
-                return (int)((size_t)cl->f.c.func & 0x7FFFFFFF);
+                return (unsigned int)((size_t)cl->f.c.func & 0x7FFFFFFF);
             } else {
                 size_t base = (size_t)cl->f.lf.proto;
-                int hash = (int)(base & 0x7FFFFFFF);
+                unsigned int hash = (int)(base & 0x7FFFFFFF);
                 /* TODO: Add cycle detection before uncommenting this
                 for (int i = 0; i < cl->f.lf.proto->szupvalues; i++) {
                     int uv_hash = lf_valuemap_compute_hash(cl->f.lf.upvalues[i]);
@@ -93,7 +93,7 @@ lfValueMap lf_valuemap_clone(const lfValueMap *map) {
 }
 
 bool lf_valuemap_lookup(const lfValueMap *map, const lfValue *key, lfValue *out) {
-    int hash = lf_valuemap_compute_hash(key) % size(map);
+    unsigned int hash = lf_valuemap_compute_hash(key) % size(map);
     lfKeyValuePair b = (*map)[hash];
     if (b.value.type == LF_TCOUNT) return false;
     if (!lf_valuemap_compare_values(&b.key, key)) return false;
@@ -102,7 +102,7 @@ bool lf_valuemap_lookup(const lfValueMap *map, const lfValue *key, lfValue *out)
 }
 
 void lf_valuemap_insert(lfValueMap *map, const lfValue *key, const lfValue *value) {
-    int hash = lf_valuemap_compute_hash(key) % size(map);
+    unsigned int hash = lf_valuemap_compute_hash(key) % size(map);
     bool collision = (*map)[hash].value.type != LF_TCOUNT && !lf_valuemap_compare_values(&(*map)[hash].key, key);
     do {
         if ((double)length(map) / (double)size(map) >= 0.7 || (*map)[hash].value.type != LF_TCOUNT) { /* load factor over 70%, expand map */

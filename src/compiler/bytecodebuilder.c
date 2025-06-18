@@ -105,7 +105,7 @@ uint32_t new_f64(lfBytecodeBuilder *bb, double value) {
 
 uint32_t new_string(lfBytecodeBuilder *bb, lfArray(char) value) {
     for (int i = 0; i < length(&bb->strings); i++) { /* TODO: Replace with a map for O(1) insertion */
-        if (!strncmp(bb->strings[i], value, length(&value)))
+        if (length(&value) == length(&bb->strings[i]) && !strncmp(bb->strings[i], value, length(&value)))
             return i;
     }
     lfArray(char) clone = array_new(char);
@@ -118,7 +118,7 @@ uint32_t new_string(lfBytecodeBuilder *bb, lfArray(char) value) {
 
 uint32_t new_cstring(lfBytecodeBuilder *bb, char *value, int length) {
     for (int i = 0; i < length(&bb->strings); i++) {
-        if (!strncmp(bb->strings[i], value, length))
+        if (length(&bb->strings[i]) == length && !strncmp(bb->strings[i], value, length))
             return i;
     }
     lfArray(char) clone = array_new(char);

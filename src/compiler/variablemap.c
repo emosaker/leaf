@@ -20,12 +20,12 @@ void lf_variablebucket_deleter(lfVariableBucket **bucket) {
     }
 }
 
-int lf_variablemap_compute_hash(const char *s) {
-    int p = 59;
-    int m = 1e9 + 9;
-    int hash_value = 0;
-    int p_pow = 1;
-    int len = strlen(s);
+unsigned int lf_variablemap_compute_hash(const char *s) {
+    size_t p = 59;
+    size_t m = 1e9 + 9;
+    size_t hash_value = 0;
+    size_t p_pow = 1;
+    size_t len = strlen(s);
     for (int i = 0; i < len; i++) {
         char c = s[i];
         if (c >= 'a' && c <= 'z') hash_value = (hash_value + (s[i] - 'a' + 1) * p_pow) % m;
@@ -34,7 +34,7 @@ int lf_variablemap_compute_hash(const char *s) {
         p_pow = (p_pow * p) % m;
     }
 
-    return hash_value;
+    return (unsigned int)hash_value;
 }
 
 lfVariableMap lf_variablemap_create(int size) {
@@ -75,7 +75,7 @@ lfVariableMap lf_variablemap_clone(const lfVariableMap *map) {
 }
 
 bool lf_variablemap_lookup(const lfVariableMap *map, const char *key, lfVariable *out) {
-    int hash = lf_variablemap_compute_hash(key) % length(map);
+    unsigned int hash = lf_variablemap_compute_hash(key) % length(map);
     lfVariableBucket *b = (*map)[hash];
     if (b == NULL) return false;
     if (b->next == NULL) {
@@ -93,7 +93,7 @@ bool lf_variablemap_lookup(const lfVariableMap *map, const char *key, lfVariable
 }
 
 void lf_variablemap_insert(lfVariableMap *map, const char *key, lfVariable value) {
-    int hash = lf_variablemap_compute_hash(key) % length(map);
+    unsigned int hash = lf_variablemap_compute_hash(key) % length(map);
     lfVariableBucket *next = malloc(sizeof(lfVariableBucket));
     next->key = key;
     next->value = value;
