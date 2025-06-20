@@ -84,6 +84,8 @@ typedef struct lfProto {
     double *floats;
     struct lfProto **protos;
     int *linenumbers;
+    uint32_t **stubs; /* sequence of bytecode stubs for expressions to be used as default values for parameters */
+    int *stub_lengths;
 
     int szcode;
     int szprotos;
@@ -93,6 +95,7 @@ typedef struct lfProto {
     int szstrings;
     int szupvalues;
     int szargs;
+    int szstubs;
 
     int name;
 } lfProto;

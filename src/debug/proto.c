@@ -77,7 +77,7 @@ void print_string_comment(const char *string, int len) {
     printf(" ; \"%s", buf);
 }
 
-void print_instruction(const lfProto *proto, lfArray(lfLabel) labels, int *i) {
+void print_instruction(const lfProto *proto, uint32_t ins, lfArray(lfLabel) labels, int *i) {
     for (int j = 0; j < length(&labels); j++) {
         lfLabel lbl = labels[j];
         if (lbl.i == *i - 1) {
@@ -90,7 +90,6 @@ void print_instruction(const lfProto *proto, lfArray(lfLabel) labels, int *i) {
         return;
     }
     uint32_t *code = proto->code;
-    uint32_t ins = code[*i];
     printf("  ");
     switch (INS_OP(ins)) {
         case OP_PUSHSI:
@@ -231,9 +230,22 @@ void lf_proto_print(const lfProto *proto) {
         printf("<anonymous>:\n");
     }
     int i = 0;
+    lfArray(lfLabel) dummy = array_new(lfLabel);
+    for (int j = 0; j < proto->szstubs; j++) {
+        i = 0;
+        printf(" .initializer%d:\n", j);
+        while (i < proto->stub_lengths[j]) {
+            print_instruction(proto, proto->stubs[j][i], dummy, &i);
+        }
+    }
+    if (proto->szstubs)
+        printf(" .body:\n");
+
+    i = 0;
     lfArray(lfLabel) labels = mark_labels(proto);
     while (i < proto->szcode + 1) {
-        print_instruction(proto, labels, &i);
+        print_instruction(proto, i < proto->szcode ? proto->code[i] : 0, labels, &i);
     }
     array_delete(&labels);
+    array_delete(&dummy);
 }

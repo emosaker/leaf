@@ -311,16 +311,13 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
     };
     array_push(&ctx->fnstack, &frame);
 
+    bool initializer_required = false;
+    int szdefaultargs = 0;
+    uint32_t **defaultargs = NULL;
+    int *lengths = NULL;
     for (int i = 0; i < length(&node->params); i++) {
-        lf_variablemap_insert(&ctx->scope, node->params[i]->name.value, (lfVariable) {
-            .stack_offset = i,
-            .is_const = node->params[i]->is_const,
-            .is_ref = node->params[i]->is_ref,
-        });
-    }
-
-    for (int i = 0; i < length(&node->body); i++)
-        if (!visit(ctx, node->body[i])) {
+        if (initializer_required && node->params[i]->initializer == NULL) {
+            lf_error_print(ctx->file, ctx->source, node->params[i]->name.idx_start, node->params[i]->name.idx_end, "arguments without initializers may not come after arguments with initializers");
             bytecodebuilder_restore(&ctx->bb, old, false);
             array_delete(&frame.upvalues);
             array_delete(&frame.scope);
@@ -329,8 +326,58 @@ bool visit_fn(lfCompilerCtx *ctx, lfFunctionNode *node) {
             ctx->scope = ctx->fnstack[length(&ctx->fnstack) - 1]->scope;
             return false;
         }
+        lf_variablemap_insert(&ctx->scope, node->params[i]->name.value, (lfVariable) {
+            .stack_offset = i,
+            .is_const = node->params[i]->is_const,
+            .is_ref = node->params[i]->is_ref,
+        });
+        if (node->params[i]->initializer != NULL) {
+            if (!nodiscard(ctx, node->params[i]->initializer)) {
+                bytecodebuilder_restore(&ctx->bb, old, false);
+                array_delete(&frame.upvalues);
+                array_delete(&frame.scope);
+                length(&ctx->fnstack) -= 1;
+                for (int i = 0; i < szdefaultargs; i++) {
+                    free(defaultargs[i]);
+                }
+                if (defaultargs) free(defaultargs);
+                if (lengths) free(lengths);
+                /* caller cleans up */
+                ctx->scope = ctx->fnstack[length(&ctx->fnstack) - 1]->scope;
+                return false;
+            }
+            szdefaultargs += 1;
+            defaultargs = realloc(defaultargs, szdefaultargs * sizeof(uint32_t *));
+            lengths = realloc(lengths, szdefaultargs * sizeof(int));
+            uint32_t *initializer = malloc(length(&ctx->bb.bytecode));
+            memcpy(initializer, ctx->bb.bytecode, length(&ctx->bb.bytecode));
+            defaultargs[szdefaultargs - 1] = initializer;
+            lengths[szdefaultargs - 1] = length(&ctx->bb.bytecode) / 4;
+            length(&ctx->bb.bytecode) = 0;
+            ctx->top -= 1;
+        }
+    }
+
+    for (int i = 0; i < length(&node->body); i++)
+        if (!visit(ctx, node->body[i])) {
+            bytecodebuilder_restore(&ctx->bb, old, false);
+            array_delete(&frame.upvalues);
+            array_delete(&frame.scope);
+            length(&ctx->fnstack) -= 1;
+            for (int i = 0; i < szdefaultargs; i++) {
+                free(defaultargs[i]);
+            }
+            if (defaultargs) free(defaultargs);
+            if (lengths) free(lengths);
+            /* caller cleans up */
+            ctx->scope = ctx->fnstack[length(&ctx->fnstack) - 1]->scope;
+            return false;
+        }
 
     lfProto *func = bytecodebuilder_allocproto(&ctx->bb, node->name.value, length(&frame.upvalues), length(&node->params));
+    func->stub_lengths = lengths;
+    func->stubs = defaultargs;
+    func->szstubs = szdefaultargs;
 
     bytecodebuilder_restore(&ctx->bb, old, true);
     array_delete(&ctx->fnstack[length(&ctx->fnstack) - 1]->scope);
@@ -440,6 +487,9 @@ lfProto *lf_compile(const char *source, const char *file) {
     }
 
     lfProto *main = bytecodebuilder_allocproto(&ctx.bb, NULL, 0, 0);
+    main->szstubs = 0;
+    main->stubs = NULL;
+    main->stub_lengths = NULL;
 
     if (main->szcode > 0 && INS_OP(main->code[main->szcode - 1]) == OP_POP) {
         main->szcode -= 1;

@@ -17,6 +17,8 @@ void lf_proto_deleter(lfProto **proto) {
         lf_proto_deleter((*proto)->protos + i);
     for (int i = 0; i < (*proto)->szstrings; i++)
         free((*proto)->strings[i]);
+    for (int i = 0; i < (*proto)->szstubs; i++)
+        free((*proto)->stubs[i]);
     free((*proto)->protos);
     free((*proto)->strings);
     free((*proto)->string_lengths);
@@ -24,6 +26,8 @@ void lf_proto_deleter(lfProto **proto) {
     free((*proto)->floats);
     free((*proto)->code);
     free((*proto)->linenumbers);
+    if ((*proto)->stubs) free((*proto)->stubs);
+    if ((*proto)->stub_lengths) free((*proto)->stub_lengths);
     free((*proto));
 }
 
@@ -183,6 +187,9 @@ lfProto *lf_proto_clone(lfProto *proto) {
     new->name = proto->name;
     new->szargs = proto->szargs;
     new->szupvalues = proto->szupvalues;
+    new->szstubs = proto->szstubs;
+    new->stubs = malloc(sizeof(uint32_t *) * proto->szstubs);
+    new->stub_lengths = malloc(sizeof(int) * proto->szstubs);
 
     for (int i = 0; i < proto->szstrings; i++) {
         char *clone = malloc(proto->string_lengths[i]);
@@ -193,6 +200,13 @@ lfProto *lf_proto_clone(lfProto *proto) {
 
     for (int i = 0; i < proto->szprotos; i++) {
         new->protos[i] = lf_proto_clone(proto->protos[i]);
+    }
+
+    for (int i = 0; i < proto->szstubs; i++) {
+        uint32_t *clone = malloc(proto->stub_lengths[i] * sizeof(uint32_t));
+        memcpy(clone, proto->stubs[i], proto->stub_lengths[i] * sizeof(uint32_t));
+        new->stubs[i] = clone;
+        new->stub_lengths[i] = proto->stub_lengths[i];
     }
 
     memcpy(new->ints, proto->ints, proto->szints * sizeof(uint64_t));

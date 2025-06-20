@@ -27,6 +27,8 @@ void restore_frame(lfState *state) {
     state->top = state->stack + frame.top;
 }
 
+int lf_run_stub(lfState *state, uint32_t *code, int szcode);
+
 void lf_call(lfState *state, int nargs, int nret) {
     lf_pusharray(state, nargs);
     lfValue argsv = lf_pop(state);
@@ -40,19 +42,32 @@ void lf_call(lfState *state, int nargs, int nret) {
         lf_errorf(state, "attempt to call object of type %s", lf_typeof(&func));
     }
 
+    lfClosure *cl = lf_cl(&func);
+
     save_frame(state, lf_cl(&func));
 
     for (uint8_t i = 0; i < nargs; i++) {
         lf_push(state, args + i);
     }
 
-    lfClosure *cl = lf_cl(&func);
     if (cl->is_c) {
         int returned = cl->f.c.func(state);
         if (returned == 0 && nret == 1) {
             lf_pushnull(state);
         }
     } else {
+        if (nargs < cl->f.lf.proto->szargs) {
+            int sznon = cl->f.lf.proto->szargs - cl->f.lf.proto->szstubs;
+            if (nargs < sznon) {
+                restore_frame(state);
+                lf_errorf(state, "too few arguments provided to %s, expected at least %d, got %d", lf_clname(cl), sznon, nargs);
+            }
+            for (int i = 0; i < cl->f.lf.proto->szargs - nargs; i++) {
+                int idx = i + nargs - sznon;
+                lf_run_stub(state, cl->f.lf.proto->stubs[idx], cl->f.lf.proto->stub_lengths[idx]);
+            }
+        }
+
         lfValue **old_up = state->upvalues;
         state->upvalues = cl->f.lf.upvalues;
         int returned = lf_run(state);
@@ -81,11 +96,11 @@ void lf_call(lfState *state, int nargs, int nret) {
     }
 }
 
-int lf_run(lfState *state) {
+int lf_run_stub(lfState *state, uint32_t *code, int szcode) {
     int captured = 0;
     lfProto *proto = state->frame[length(&state->frame) - 1].cl->f.lf.proto; /* proto is gotten here instead of passed to ensure that any error thrown by the VM has a lfCallInfo for diagnostics */
-    for (int i = 0; i < proto->szcode; i++) {
-        uint32_t ins = proto->code[i];
+    for (int i = 0; i < szcode; i++) {
+        uint32_t ins = code[i];
         switch (INS_OP(ins)) {
             case OP_PUSHSI:
                 lf_pushint(state, INS_E(ins));
@@ -259,4 +274,9 @@ int lf_run(lfState *state) {
     }
 
     return 0;
+}
+
+int lf_run(lfState *state) {
+    lfProto *proto = state->frame[length(&state->frame) - 1].cl->f.lf.proto;
+    return lf_run_stub(state, proto->code, proto->szcode);
 }
