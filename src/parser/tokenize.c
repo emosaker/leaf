@@ -2,6 +2,7 @@
  * This file is part of the leaf programming language
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
@@ -25,13 +26,8 @@ const char *keywords[] = {
 
 void lf_token_deleter(lfToken *tok) {
     if (tok->value != NULL) {
-        if (tok->type == TT_STRING) {
-            array_delete(&tok->value);
-            tok->value = NULL;
-        } else {
-            free(tok->value);
-            tok->value = NULL;
-        }
+        array_delete(&tok->value);
+        tok->value = NULL;
     }
 }
 
@@ -204,10 +200,12 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                     }
                     lfToken tok = (lfToken) {
                         .type = dots == 0 ? TT_INT : TT_FLOAT,
-                        .value = malloc(i - start + 1),
+                        .value = array_new(char),
                         .idx_start = start,
                         .idx_end = i
                     };
+                    array_reserve(&tok.value, i - start + 1);
+                    length(&tok.value) = i - start + 1;
                     memcpy(tok.value, source + start, i - start);
                     tok.value[i - start] = 0;
                     array_push(&tokens, tok);
@@ -227,12 +225,14 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
                     }
                     lfToken tok = (lfToken) {
                         .type = TT_IDENTIFIER,
-                        .value = malloc(i - start + 1),
+                        .value = array_new(char),
                         .idx_start = start,
                         .idx_end = i
                     };
+                    array_reserve(&tok.value, i - start + 1);
+                    length(&tok.value) = i - start + 1;
                     memcpy(tok.value, source + start, i - start);
-                    tok.value[i - start] = 0;
+                    tok.value[length(&tok.value) - 1] = 0;
                     int j = 0;
                     while (keywords[j] != NULL) {
                         if (!strcmp(tok.value, keywords[j])) {
@@ -323,6 +323,5 @@ lfArray(lfToken) lf_tokenize(const char *source, const char *file) {
 
     array_push(&tokens, token_single(TT_EOF, i - 1));
 
-    deleter(&tokens) = NULL;
     return tokens;
 }

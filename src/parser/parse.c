@@ -2,6 +2,7 @@
  * This file is part of the leaf programming language
  */
 
+#include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
 
@@ -72,6 +73,17 @@ void parse_error_here(lfParseCtx *ctx, const char *message) {
     parse_error_at(ctx, ctx->current, message);
 }
 
+lfToken copy(lfToken tok) {
+    if (tok.value != NULL) {
+        lfArray(char) buf = array_new(char);
+        array_reserve(&buf, length(&tok.value));
+        memcpy(buf, tok.value, length(&tok.value));
+        length(&buf) = length(&tok.value);
+        tok.value = buf;
+    }
+    return tok;
+}
+
 lfNode *parse_expr(lfParseCtx *ctx);
 lfType *parse_type(lfParseCtx *ctx);
 lfNode *parse_statement(lfParseCtx *ctx);
@@ -83,7 +95,7 @@ lfType *parse_typename(lfParseCtx *ctx) {
     }
     lfTypeName *typename = alloc(lfTypeName);
     typename->type = VT_TYPENAME;
-    typename->typename = ctx->current;
+    typename->typename = copy(ctx->current);
     advance(ctx);
     return (lfType *)typename;
 }
@@ -182,6 +194,7 @@ lfType *parse_nontrivial_type(lfParseCtx *ctx) {
             } while (ctx->current.type == TT_COMMA);
         }
         if (ctx->current.type != TT_RPAREN) {
+            printf("in ntt\n");
             parse_error_here(ctx, "expected ')'");
             parse_error_at(ctx, lparen, "... to close");
             if (params != NULL) {
@@ -252,7 +265,7 @@ lfNode *parse_literal(lfParseCtx *ctx) {
     if (ctx->current.type == TT_INT || ctx->current.type == TT_FLOAT || ctx->current.type == TT_STRING) {
         lfLiteralNode *literal = alloc(lfLiteralNode);
         literal->type = ctx->current.type == TT_INT ? NT_INT : ctx->current.type == TT_FLOAT ? NT_FLOAT : NT_STRING;
-        literal->value = ctx->current;
+        literal->value = copy(ctx->current);
         literal->lineno = get_lineno(ctx);
         advance(ctx);
         return (lfNode *)literal;
@@ -262,6 +275,7 @@ lfNode *parse_literal(lfParseCtx *ctx) {
         lfNode *expr = parse_expr(ctx);
         if (ctx->errored) return NULL;
         if (ctx->current.type != TT_RPAREN) {
+            printf("in literal\n");
             parse_error_here(ctx, "expected ')'");
             parse_error_at(ctx, lparen, "... to close");
             lf_node_deleter(&expr);
@@ -289,16 +303,19 @@ lfNode *parse_literal(lfParseCtx *ctx) {
         if (ctx->current.type == TT_ASSIGN) {
             advance(ctx);
             lfNode *value = parse_expr(ctx);
+            if (ctx->errored) {
+                return NULL;
+            }
             lfAssignNode *assign = alloc(lfAssignNode);
             assign->type = NT_ASSIGN;
-            assign->var = var;
+            assign->var = copy(var);
             assign->value = value;
             assign->lineno = lineno;
             return (lfNode *)assign;
         } else {
             lfVarAccessNode *access = alloc(lfVarAccessNode);
             access->type = NT_VARACCESS;
-            access->var = var;
+            access->var = copy(var);
             access->lineno = lineno;
             return (lfNode *)access;
         }
@@ -431,7 +448,7 @@ lfNode *parse_subscriptive(lfParseCtx *ctx) {
             }
             lfLiteralNode *index = alloc(lfLiteralNode);
             index->type = NT_STRING;
-            index->value = ctx->current;
+            index->value = copy(ctx->current);
             advance(ctx);
             if (ctx->current.type != TT_ASSIGN) {
                 lfSubscriptionNode *sub = alloc(lfSubscriptionNode);
@@ -475,6 +492,7 @@ lfNode *parse_subscriptive(lfParseCtx *ctx) {
                 } while (ctx->current.type == TT_COMMA);
             }
             if (ctx->current.type != TT_RPAREN) {
+                printf("in subscriptive\n");
                 parse_error_here(ctx, "expected ')'");
                 parse_error_at(ctx, lparen, "... to close");
                 lf_node_deleter(&object);
@@ -619,7 +637,6 @@ lfNode *parse_vardecl(lfParseCtx *ctx, bool allow_ref) {
             advance(ctx);
             type = parse_type(ctx);
             if (ctx->errored) {
-                lf_token_deleter(&name);
                 return NULL;
             }
         }
@@ -628,7 +645,6 @@ lfNode *parse_vardecl(lfParseCtx *ctx, bool allow_ref) {
             advance(ctx);
             initializer = parse_expr(ctx);
             if (ctx->errored) {
-                lf_token_deleter(&name);
                 if (type) {
                     lf_type_deleter(&type);
                 }
@@ -638,7 +654,7 @@ lfNode *parse_vardecl(lfParseCtx *ctx, bool allow_ref) {
         lfVarDeclNode *decl = alloc(lfVarDeclNode);
         decl->type = NT_VARDECL;
         decl->is_const = is_const;
-        decl->name = name;
+        decl->name = copy(name);
         decl->initializer = initializer;
         decl->is_ref = is_ref;
         decl->vartype = type;
@@ -722,7 +738,6 @@ lfNode *parse_fn(lfParseCtx *ctx) {
     lfToken lparen = ctx->current;
     if (ctx->current.type != TT_LPAREN) {
         parse_error_here(ctx, "expected '('");
-        lf_token_deleter(&name);
         array_delete(&type_names);
         array_delete(&types);
         return NULL;
@@ -739,7 +754,6 @@ lfNode *parse_fn(lfParseCtx *ctx) {
                 if (!ctx->described) {
                     parse_error_here(ctx, "expected parameter");
                 }
-                lf_token_deleter(&name);
                 array_delete(&params);
                 array_delete(&type_names);
                 array_delete(&types);
@@ -749,9 +763,9 @@ lfNode *parse_fn(lfParseCtx *ctx) {
         } while (ctx->current.type == TT_COMMA);
     }
     if (ctx->current.type != TT_RPAREN) {
+        printf("in fn\n");
         parse_error_here(ctx, "expected ')'");
         parse_error_at(ctx, lparen, "... to close");
-        lf_token_deleter(&name);
         array_delete(&params);
         array_delete(&type_names);
         array_delete(&types);
@@ -763,7 +777,6 @@ lfNode *parse_fn(lfParseCtx *ctx) {
         advance(ctx);
         type = parse_type(ctx);
         if (ctx->errored) {
-            lf_token_deleter(&name);
             array_delete(&params);
             array_delete(&type_names);
             array_delete(&types);
@@ -773,7 +786,6 @@ lfNode *parse_fn(lfParseCtx *ctx) {
     lfToken lbrace = ctx->current;
     if (ctx->current.type != TT_LBRACE) {
         parse_error_here(ctx, "expected '{'");
-        lf_token_deleter(&name);
         array_delete(&params);
         if (type) {
             lf_type_deleter(&type);
@@ -787,7 +799,6 @@ lfNode *parse_fn(lfParseCtx *ctx) {
     while (ctx->current.type != TT_RBRACE) {
         lfNode *statement = parse_statement(ctx);
         if (ctx->errored) {
-            lf_token_deleter(&name);
             array_delete(&params);
             array_delete(&body);
             if (type) {
@@ -802,7 +813,7 @@ lfNode *parse_fn(lfParseCtx *ctx) {
     advance(ctx);
     lfFunctionNode *f = alloc(lfFunctionNode);
     f->type = NT_FUNC;
-    f->name = name;
+    f->name = copy(name);
     f->body = body;
     f->params = params;
     f->return_type = type;
@@ -952,7 +963,7 @@ lfNode *parse_statement(lfParseCtx *ctx) {
                 array_delete(&path);
                 return NULL;
             }
-            array_push(&path, ctx->current);
+            array_push(&path, copy(ctx->current));
             advance(ctx);
             while (ctx->current.type == TT_DOT) {
                 advance(ctx);
@@ -1011,11 +1022,6 @@ lfNode *lf_parse(const char *source, const char *file) {
         array_push(&chunk->statements, statement);
     }
 
-    for (int i = 0; i < length(&tokens); i++) {
-        if (tokens[i].type == TT_KEYWORD || (ctx.errored && i >= ctx.current_idx)) {
-            lf_token_deleter(tokens + i);
-        }
-    }
     array_delete(&tokens);
 
     return (lfNode *)chunk;
