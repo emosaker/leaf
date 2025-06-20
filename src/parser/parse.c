@@ -2,7 +2,6 @@
  * This file is part of the leaf programming language
  */
 
-#include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
 
@@ -194,7 +193,6 @@ lfType *parse_nontrivial_type(lfParseCtx *ctx) {
             } while (ctx->current.type == TT_COMMA);
         }
         if (ctx->current.type != TT_RPAREN) {
-            printf("in ntt\n");
             parse_error_here(ctx, "expected ')'");
             parse_error_at(ctx, lparen, "... to close");
             if (params != NULL) {
@@ -275,7 +273,6 @@ lfNode *parse_literal(lfParseCtx *ctx) {
         lfNode *expr = parse_expr(ctx);
         if (ctx->errored) return NULL;
         if (ctx->current.type != TT_RPAREN) {
-            printf("in literal\n");
             parse_error_here(ctx, "expected ')'");
             parse_error_at(ctx, lparen, "... to close");
             lf_node_deleter(&expr);
@@ -492,7 +489,6 @@ lfNode *parse_subscriptive(lfParseCtx *ctx) {
                 } while (ctx->current.type == TT_COMMA);
             }
             if (ctx->current.type != TT_RPAREN) {
-                printf("in subscriptive\n");
                 parse_error_here(ctx, "expected ')'");
                 parse_error_at(ctx, lparen, "... to close");
                 lf_node_deleter(&object);
@@ -763,7 +759,6 @@ lfNode *parse_fn(lfParseCtx *ctx) {
         } while (ctx->current.type == TT_COMMA);
     }
     if (ctx->current.type != TT_RPAREN) {
-        printf("in fn\n");
         parse_error_here(ctx, "expected ')'");
         parse_error_at(ctx, lparen, "... to close");
         array_delete(&params);
